@@ -1,3 +1,9 @@
+/**
+ * @file world.hpp
+ * @author Alic Szecsei
+ * @date 12/15/2022
+ */
+
 #pragma once
 
 #include <entt/entt.hpp>
@@ -21,7 +27,8 @@ namespace rglike {
         inline void move_player_y(int delta) { m_player_y += delta; }
 
         void initialize();
+
         void update();
-        [[nodiscard]] auto render() const -> ftxui::Element;
+        [[nodiscard]] auto render(int width, int height) const -> ftxui::Element;
     };
 } // namespace rglike

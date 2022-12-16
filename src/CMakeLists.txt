@@ -5,20 +5,24 @@
 # file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${ModernCMakeExample_SOURCE_DIR}/include/modern/*.hpp")
 set(HEADER_LIST
         "${rglike_SOURCE_DIR}/include/rglike/constants.hpp"
-        "${rglike_SOURCE_DIR}/include/rglike/lib.hpp"
-        "${rglike_SOURCE_DIR}/include/rglike/world.hpp")
+        "${rglike_SOURCE_DIR}/include/rglike/game.hpp"
+        "${rglike_SOURCE_DIR}/include/rglike/world.hpp"
+        "${rglike_SOURCE_DIR}/include/rglike/rglike.hpp"
+        "${rglike_SOURCE_DIR}/include/rglike/game_log.hpp")
 
 # Make an automatic library - will be static or dynamic based on user setting
 add_library(rglike
-        lib.cpp
+        ${HEADER_LIST}
+        game.cpp
         world.cpp
-        ${HEADER_LIST})
+        game_log.cpp)
 
 # We need this directory, and users of our library will need it too
 target_include_directories(rglike PUBLIC ../include)
 
 # target_link_libraries
 target_link_libraries(rglike
+        PRIVATE fmt::fmt
         PUBLIC spdlog::spdlog
         PUBLIC ftxui::screen
         PUBLIC ftxui::dom
