@@ -6,18 +6,16 @@
 
 #pragma once
 
+#include "ftxui/screen/color.hpp"
 #include <deque>
-#include <ftxui/component/component.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
-using namespace ftxui;
-
 namespace rglike {
     struct GameLogFragment {
-        Color color;
-        Color bg_color;
+        ftxui::Color color;
+        ftxui::Color bg_color;
         bool bold;
         bool dim;
         bool underlined;
@@ -25,8 +23,8 @@ namespace rglike {
         std::string text;
 
         GameLogFragment(
-            Color color, Color bg_color, bool bold, bool dim, bool underlined, bool blinking,
-            const std::string_view& text
+            ftxui::Color color, ftxui::Color bg_color, bool bold, bool dim, bool underlined,
+            bool blinking, const std::string_view& text
         )
             : color(color)
             , bg_color(bg_color)
@@ -37,20 +35,12 @@ namespace rglike {
             , text(text) { }
     };
 
-    auto logParagraph(const std::vector<GameLogFragment>& the_text) -> ftxui::Element;
-    auto logParagraphAlignLeft(const std::vector<GameLogFragment>& the_text) -> ftxui::Element;
-    /*
-    auto logParagraphAlignRight(const std::vector<GameLogFragment>& the_text) -> ftxui::Element;
-    auto logParagraphAlignCenter(const std::vector<GameLogFragment>& the_text) -> ftxui::Element;
-    auto logParagraphAlignJustify(const std::vector<GameLogFragment>& the_text) -> ftxui::Element;
-    */
-
     class GameLog;
 
     class LogEntry {
     private:
-        Color m_current_color = Color::Default;
-        Color m_current_bg_color = Color::Default;
+        ftxui::Color m_current_color = ftxui::Color::Default;
+        ftxui::Color m_current_bg_color = ftxui::Color::Default;
         bool m_current_bold = false;
         bool m_current_dim = false;
         bool m_current_underlined = false;
@@ -67,8 +57,8 @@ namespace rglike {
         }
 
     public:
-        [[nodiscard]] auto color(Color color) -> LogEntry&;
-        [[nodiscard]] auto bg_color(Color color) -> LogEntry&;
+        [[nodiscard]] auto color(ftxui::Color color) -> LogEntry&;
+        [[nodiscard]] auto bg_color(ftxui::Color color) -> LogEntry&;
         [[nodiscard]] auto bold(bool bold) -> LogEntry&;
         [[nodiscard]] auto dim(bool dim) -> LogEntry&;
         [[nodiscard]] auto underline(bool underline) -> LogEntry&;
@@ -79,24 +69,32 @@ namespace rglike {
         friend class GameLog;
     };
 
-    class GameLog : public ComponentBase {
+    class GameLog {
     private:
+        GameLog() = default;
+        ~GameLog() = default;
+
         std::deque<std::vector<GameLogFragment>> m_log;
-        int m_selected;
-        Box m_box;
 
         void log(const LogEntry& entry);
 
     public:
+        static auto GetInstance() -> GameLog&;
+
+        GameLog(const GameLog&) = delete;
+        auto operator=(const GameLog&) -> GameLog& = delete;
+        GameLog(GameLog&&) = delete;
+        auto operator=(GameLog&&) -> GameLog& = delete;
+
         auto entry() -> LogEntry;
         void log(const std::string_view& text);
 
-        [[nodiscard]] auto Render() -> ftxui::Element final;
-        auto OnEvent(Event event) -> bool final;
+        [[nodiscard]] inline auto size() const -> size_t { return m_log.size(); }
 
-        [[nodiscard]] auto Focusable() const -> bool final { return true; }
-
-        [[nodiscard]] inline auto selected() const -> int { return m_selected; }
+        [[nodiscard]] inline auto entries() const
+            -> const std::deque<std::vector<GameLogFragment>>& {
+            return m_log;
+        }
 
         friend class LogEntry;
     };

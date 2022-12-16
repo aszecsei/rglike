@@ -6,8 +6,9 @@
 
 #include "rglike/game.hpp"
 
-#include "rglike/constants.hpp"
-#include "rglike/game_log.hpp"
+#include "components/log_component.hpp"
+#include "constants.hpp"
+#include "game_log.hpp"
 
 #include <fmt/core.h>
 #include <ftxui/component/component.hpp>
@@ -28,8 +29,14 @@ namespace rglike {
 
         auto screen = ftxui::ScreenInteractive::Fullscreen();
 
-        auto log = Make<GameLog>();
-        log->entry().text("Welcome to").color(Color::Red).blink(true).text("rglike").log();
+        auto log = components::game_log(GameLog::GetInstance());
+        GameLog::GetInstance()
+            .entry()
+            .text("Welcome to")
+            .color(ftxui::Color::Red)
+            .blink(true)
+            .text("rglike")
+            .log();
 
         auto left = ftxui::Renderer([] {
             return ftxui::text("left") | ftxui::center;
@@ -66,7 +73,9 @@ namespace rglike {
                 auto dim = ftxui::Terminal::Size();
                 auto world_width = dim.dimx - (5 + left_size + right_size);
                 auto world_height = dim.dimy - (3 + bottom_size);
-                log->log(fmt::format("World view size: ({}, {})", world_width, world_height));
+                GameLog::GetInstance().log(
+                    fmt::format("World view size: ({}, {})", world_width, world_height)
+                );
             }
 
             if (event == ftxui::Event::ArrowUp) {

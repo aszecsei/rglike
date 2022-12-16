@@ -6,7 +6,7 @@
 
 #include "rglike/world.hpp"
 
-#include "rglike/constants.hpp"
+#include "constants.hpp"
 #include <spdlog/spdlog.h>
 
 namespace rglike {

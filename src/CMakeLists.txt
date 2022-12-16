@@ -4,18 +4,20 @@
 # Optionally glob, but only for CMake 3.12 or later:
 # file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${ModernCMakeExample_SOURCE_DIR}/include/modern/*.hpp")
 set(HEADER_LIST
-        "${rglike_SOURCE_DIR}/include/rglike/constants.hpp"
-        "${rglike_SOURCE_DIR}/include/rglike/game.hpp"
-        "${rglike_SOURCE_DIR}/include/rglike/world.hpp"
         "${rglike_SOURCE_DIR}/include/rglike/rglike.hpp"
-        "${rglike_SOURCE_DIR}/include/rglike/game_log.hpp")
+        "${rglike_SOURCE_DIR}/include/rglike/game.hpp"
+        "${rglike_SOURCE_DIR}/include/rglike/world.hpp")
 
 # Make an automatic library - will be static or dynamic based on user setting
 add_library(rglike
         ${HEADER_LIST}
+        constants.hpp
         game.cpp
         world.cpp
-        game_log.cpp)
+        game_log.cpp
+        game_log.hpp
+        components/log_component.cpp
+        components/log_component.hpp)
 
 # We need this directory, and users of our library will need it too
 target_include_directories(rglike PUBLIC ../include)
