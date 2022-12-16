@@ -11,4 +11,4 @@ namespace rglike {
         void initialize();
         void run();
     };
-}
+} // namespace rglike

@@ -1,6 +1,4 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-TEST_CASE( "Quick check", "[main]" ) {
-    REQUIRE( true == true );
-}
+TEST_CASE("Quick check", "[main]") { REQUIRE(true == true); }

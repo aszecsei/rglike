@@ -1,10 +1,10 @@
 #include "rglike/lib.hpp"
 
-#include <spdlog/spdlog.h>
-#include <ftxui/dom/elements.hpp>
-#include <ftxui/component/screen_interactive.hpp>
-#include <ftxui/component/event.hpp>
 #include <ftxui/component/component.hpp>
+#include <ftxui/component/event.hpp>
+#include <ftxui/component/screen_interactive.hpp>
+#include <ftxui/dom/elements.hpp>
+#include <spdlog/spdlog.h>
 
 namespace rglike {
     void Game::initialize() {
@@ -49,4 +49,4 @@ namespace rglike {
         });
         screen.Loop(component);
     }
-}
+} // namespace rglike
