@@ -74,6 +74,23 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cli11)
 # Adds CLI11::CLI11
 
+# Terminal UI library
+FetchContent_Declare(ftxui
+  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+  GIT_TAG v3.0.0
+)
+FetchContent_MakeAvailable(ftxui)
+# Adds ftxui::screen, ftxui::dom, ftxui::component
+
+# Entity-framework library
+FetchContent_Declare(
+    entt
+    GIT_REPOSITORY https://github.com/skypjack/entt.git
+    GIT_TAG v3.11.1
+)
+FetchContent_MakeAvailable(entt)
+# Adds EnTT::EnTT
+
 # The compiled library code is here
 add_subdirectory(src)
 
