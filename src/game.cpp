@@ -29,7 +29,7 @@ namespace rglike {
         auto screen = ftxui::ScreenInteractive::Fullscreen();
 
         auto log = Make<GameLog>();
-        log->log("LOG START");
+        log->entry().text("Welcome to").color(Color::Red).blink(true).text("rglike").log();
 
         auto left = ftxui::Renderer([] {
             return ftxui::text("left") | ftxui::center;
@@ -48,8 +48,8 @@ namespace rglike {
         });
 
         auto container = world;
-        container = ftxui::ResizableSplitBottom(log, container, &bottom_size);
         container = ftxui::ResizableSplitLeft(left, container, &left_size);
+        container = ftxui::ResizableSplitBottom(log, container, &bottom_size);
         container = ftxui::ResizableSplitRight(right, container, &right_size);
 
         auto renderer = ftxui::Renderer(container, [&] {
