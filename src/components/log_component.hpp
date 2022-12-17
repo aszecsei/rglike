@@ -10,5 +10,5 @@
 #include <ftxui/component/component.hpp>
 
 namespace rglike::components {
-    [[nodiscard]] auto game_log(const GameLog& gameLog) -> ftxui::Component;
+    [[nodiscard]] auto GameLogViewer(const GameLog& gameLog) -> ftxui::Component;
 } // namespace rglike::components

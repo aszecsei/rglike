@@ -7,3 +7,4 @@
 #pragma once
 
 #include "rglike/game.hpp"
+#include "rglike/scene.hpp"

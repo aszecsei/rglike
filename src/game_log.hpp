@@ -52,19 +52,19 @@ namespace rglike {
         explicit LogEntry(GameLog* log)
             : m_log(log) { }
 
-        [[nodiscard]] inline auto fragments() const -> std::vector<GameLogFragment> {
+        [[nodiscard]] inline auto Fragments() const -> std::vector<GameLogFragment> {
             return m_fragments;
         }
 
     public:
-        [[nodiscard]] auto color(ftxui::Color color) -> LogEntry&;
-        [[nodiscard]] auto bg_color(ftxui::Color color) -> LogEntry&;
-        [[nodiscard]] auto bold(bool bold) -> LogEntry&;
-        [[nodiscard]] auto dim(bool dim) -> LogEntry&;
-        [[nodiscard]] auto underline(bool underline) -> LogEntry&;
-        [[nodiscard]] auto blink(bool blink) -> LogEntry&;
-        [[nodiscard]] auto text(const std::string_view& text) -> LogEntry&;
-        void log() const;
+        [[nodiscard]] auto Color(ftxui::Color color) -> LogEntry&;
+        [[nodiscard]] auto BgColor(ftxui::Color color) -> LogEntry&;
+        [[nodiscard]] auto Bold(bool bold) -> LogEntry&;
+        [[nodiscard]] auto Dim(bool dim) -> LogEntry&;
+        [[nodiscard]] auto Underline(bool underline) -> LogEntry&;
+        [[nodiscard]] auto Blink(bool blink) -> LogEntry&;
+        [[nodiscard]] auto Text(const std::string_view& text) -> LogEntry&;
+        void Log() const;
 
         friend class GameLog;
     };
@@ -76,7 +76,7 @@ namespace rglike {
 
         std::deque<std::vector<GameLogFragment>> m_log;
 
-        void log(const LogEntry& entry);
+        void Log(const LogEntry& entry);
 
     public:
         static auto GetInstance() -> GameLog&;
@@ -86,12 +86,12 @@ namespace rglike {
         GameLog(GameLog&&) = delete;
         auto operator=(GameLog&&) -> GameLog& = delete;
 
-        auto entry() -> LogEntry;
-        void log(const std::string_view& text);
+        auto Entry() -> LogEntry;
+        void Log(const std::string_view& text);
 
-        [[nodiscard]] inline auto size() const -> size_t { return m_log.size(); }
+        [[nodiscard]] inline auto Size() const -> size_t { return m_log.size(); }
 
-        [[nodiscard]] inline auto entries() const
+        [[nodiscard]] inline auto Entries() const
             -> const std::deque<std::vector<GameLogFragment>>& {
             return m_log;
         }

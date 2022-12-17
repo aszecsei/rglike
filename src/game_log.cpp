@@ -9,37 +9,37 @@
 #include <sstream>
 
 namespace rglike {
-    auto LogEntry::color(ftxui::Color color) -> LogEntry& {
+    auto LogEntry::Color(ftxui::Color color) -> LogEntry& {
         m_current_color = color;
         return *this;
     }
 
-    auto LogEntry::bg_color(ftxui::Color color) -> LogEntry& {
+    auto LogEntry::BgColor(ftxui::Color color) -> LogEntry& {
         m_current_bg_color = color;
         return *this;
     }
 
-    auto LogEntry::bold(bool bold) -> LogEntry& {
+    auto LogEntry::Bold(bool bold) -> LogEntry& {
         m_current_bold = bold;
         return *this;
     }
 
-    auto LogEntry::dim(bool dim) -> LogEntry& {
+    auto LogEntry::Dim(bool dim) -> LogEntry& {
         m_current_dim = dim;
         return *this;
     }
 
-    auto LogEntry::underline(bool underline) -> LogEntry& {
+    auto LogEntry::Underline(bool underline) -> LogEntry& {
         m_current_underlined = underline;
         return *this;
     }
 
-    auto LogEntry::blink(bool blink) -> LogEntry& {
+    auto LogEntry::Blink(bool blink) -> LogEntry& {
         m_current_blinking = blink;
         return *this;
     }
 
-    auto LogEntry::text(const std::string_view& text) -> LogEntry& {
+    auto LogEntry::Text(const std::string_view& text) -> LogEntry& {
         m_fragments.emplace_back(
             m_current_color, m_current_bg_color, m_current_bold, m_current_dim,
             m_current_underlined, m_current_blinking, text
@@ -47,19 +47,19 @@ namespace rglike {
         return *this;
     }
 
-    void LogEntry::log() const { m_log->log(*this); }
+    void LogEntry::Log() const { m_log->Log(*this); }
 
     auto GameLog::GetInstance() -> GameLog& {
         static GameLog instance{};
         return instance;
     }
 
-    void GameLog::log(const std::string_view& text) { entry().text(text).log(); }
+    void GameLog::Log(const std::string_view& text) { Entry().Text(text).Log(); }
 
-    void GameLog::log(const LogEntry& entry) {
+    void GameLog::Log(const LogEntry& entry) {
         if (m_log.size() == MAX_LOG_LINES) { m_log.pop_back(); }
-        m_log.push_front(entry.fragments());
+        m_log.push_front(entry.Fragments());
     }
 
-    auto GameLog::entry() -> LogEntry { return LogEntry(this); }
+    auto GameLog::Entry() -> LogEntry { return LogEntry(this); }
 } // namespace rglike

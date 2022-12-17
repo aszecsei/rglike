@@ -6,7 +6,7 @@
 set(HEADER_LIST
         "${rglike_SOURCE_DIR}/include/rglike/rglike.hpp"
         "${rglike_SOURCE_DIR}/include/rglike/game.hpp"
-        "${rglike_SOURCE_DIR}/include/rglike/world.hpp")
+        "${rglike_SOURCE_DIR}/include/rglike/scene.hpp")
 
 # Make an automatic library - will be static or dynamic based on user setting
 add_library(rglike
@@ -14,10 +14,13 @@ add_library(rglike
         constants.hpp
         game.cpp
         world.cpp
+        world.hpp
         game_log.cpp
         game_log.hpp
         components/log_component.cpp
-        components/log_component.hpp)
+        components/log_component.hpp
+        game_scene.cpp 
+        game_scene.hpp main_menu_scene.cpp main_menu_scene.hpp)
 
 # We need this directory, and users of our library will need it too
 target_include_directories(rglike PUBLIC ../include)

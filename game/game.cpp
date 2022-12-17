@@ -25,8 +25,8 @@ auto main(int argc, char** argv) -> int {
     spdlog::set_default_logger(logger);
 
     rglike::Game game{};
-    game.initialize();
-    game.run();
+    game.Initialize();
+    game.Run();
 
     return EXIT_SUCCESS;
 }

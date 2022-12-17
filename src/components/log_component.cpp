@@ -32,13 +32,13 @@ namespace rglike::components {
         return output;
     }
 
-    auto logParagraphAlignLeft(const std::vector<GameLogFragment>& the_text) -> ftxui::Element {
+    auto LogParagraphAlignLeft(const std::vector<GameLogFragment>& the_text) -> ftxui::Element {
         static const auto config = ftxui::FlexboxConfig().SetGap(1, 0);
         return ftxui::flexbox(Split(the_text), config);
     }
 
-    auto logParagraph(const std::vector<GameLogFragment>& the_text) -> ftxui::Element {
-        return logParagraphAlignLeft(the_text);
+    auto LogParagraph(const std::vector<GameLogFragment>& the_text) -> ftxui::Element {
+        return LogParagraphAlignLeft(the_text);
     }
 
     class GameLogComponent : public ComponentBase {
@@ -56,21 +56,21 @@ namespace rglike::components {
 
         [[nodiscard]] auto Focusable() const -> bool final { return true; }
 
-        [[nodiscard]] inline auto selected() const -> int { return m_selected; }
+        [[nodiscard]] inline auto Selected() const -> int { return m_selected; }
     };
 
     auto GameLogComponent::Render() -> ftxui::Element {
         ftxui::Elements log{};
-        log.reserve(m_log.size());
+        log.reserve(m_log.Size());
         int index = 0;
-        for (const auto& line : m_log.entries()) {
+        for (const auto& line : m_log.Entries()) {
             bool is_focus = (index++ == m_selected);
             Decorator line_decorator = nothing;
             if (is_focus) {
                 line_decorator = line_decorator | focus;
                 if (Focused()) { line_decorator = line_decorator | bold; }
             }
-            log.push_back(logParagraph(line) | line_decorator);
+            log.push_back(LogParagraph(line) | line_decorator);
         }
         return ftxui::vbox({
             ftxui::text("> Game Log"),
@@ -96,13 +96,13 @@ namespace rglike::components {
         if (event == Event::PageDown) { m_selected += m_box.y_max - m_box.y_min; }
         if (event == Event::PageUp) { m_selected -= m_box.y_max - m_box.y_min; }
         if (event == Event::Home) { m_selected = 0; }
-        if (event == Event::End) { m_selected = (int)m_log.size() - 1; }
-        m_selected = std::max(0, std::min((int)m_log.size() - 1, m_selected));
+        if (event == Event::End) { m_selected = (int)m_log.Size() - 1; }
+        m_selected = std::max(0, std::min((int)m_log.Size() - 1, m_selected));
 
         return m_selected != old_selected;
     }
 
-    auto game_log(const GameLog& gameLog) -> ftxui::Component {
+    auto GameLogViewer(const GameLog& gameLog) -> ftxui::Component {
         return Make<GameLogComponent>(gameLog);
     }
 } // namespace rglike::components

@@ -4,7 +4,7 @@
  * @date 12/15/2022
  */
 
-#include "rglike/world.hpp"
+#include "world.hpp"
 
 #include "constants.hpp"
 #include <spdlog/spdlog.h>
@@ -13,16 +13,16 @@ namespace rglike {
     constexpr int DEFAULT_PLAYER_X_POS = 1;
     constexpr int DEFAULT_PLAYER_Y_POS = 1;
 
-    void World::initialize() {
+    void World::Initialize() {
         spdlog::info("Initializing world");
 
         m_player_x = DEFAULT_PLAYER_X_POS;
         m_player_y = DEFAULT_PLAYER_Y_POS;
     }
 
-    void World::update() { }
+    void World::Update() { }
 
-    auto World::render(int width, int height) const -> ftxui::Element {
+    auto World::Render(int width, int height) const -> ftxui::Element {
         ftxui::Elements world{};
         world.reserve(height);
         for (int i = 0; i < height; ++i) {
