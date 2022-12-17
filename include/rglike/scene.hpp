@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <ftxui/component/component.hpp>
-#include <ftxui/component/screen_interactive.hpp>
 #include <string_view>
 
+/// Contains the rglike classes and functions.
 namespace rglike {
     class Game;
 
+    /// @brief A scene in the game.
     class Scene {
     private:
         Game* owner = nullptr;
@@ -26,6 +26,8 @@ namespace rglike {
         template<class T> inline void ChangeScene() { owner->ChangeScene<T>(); }
 
         virtual auto SceneName() -> std::string_view = 0;
+
+        virtual void Initialize() = 0;
         virtual void Render() = 0;
     };
 } // namespace rglike

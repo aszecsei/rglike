@@ -17,10 +17,16 @@ add_library(rglike
         world.hpp
         game_log.cpp
         game_log.hpp
-        components/log_component.cpp
-        components/log_component.hpp
+        ui/log_component.cpp
+        ui/log_component.hpp
+        ui/world_component.cpp
+        ui/world_component.hpp
         game_scene.cpp 
-        game_scene.hpp main_menu_scene.cpp main_menu_scene.hpp)
+        game_scene.hpp 
+        main_menu_scene.cpp
+        main_menu_scene.hpp 
+        math.cpp 
+        math.hpp)
 
 # We need this directory, and users of our library will need it too
 target_include_directories(rglike PUBLIC ../include)

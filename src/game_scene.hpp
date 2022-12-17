@@ -18,9 +18,9 @@ namespace rglike {
         explicit GameScene(Game* game)
             : Scene(game) { }
 
-        inline auto SceneName() -> std::string_view override {
-            return "GameScene";
-        }
+        inline auto SceneName() -> std::string_view override { return "GameScene"; }
+
+        void Initialize() override;
         void Render() override;
     };
 } // namespace rglike

@@ -9,7 +9,7 @@
 
 using namespace ftxui;
 
-namespace rglike::components {
+namespace rglike::ui {
     auto Split(const std::vector<GameLogFragment>& the_text) -> ftxui::Elements {
         Elements output{};
         output.push_back(text(":: "));

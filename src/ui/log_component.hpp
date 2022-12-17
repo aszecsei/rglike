@@ -9,6 +9,7 @@
 #include "../game_log.hpp"
 #include <ftxui/component/component.hpp>
 
-namespace rglike::components {
+/// View/rendering components for rglike
+namespace rglike::ui {
     [[nodiscard]] auto GameLogViewer(const GameLog& gameLog) -> ftxui::Component;
-} // namespace rglike::components
+} // namespace rglike::ui

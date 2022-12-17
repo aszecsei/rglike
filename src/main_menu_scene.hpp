@@ -15,9 +15,10 @@ namespace rglike {
         explicit MainMenuScene(Game* game)
             : Scene(game) { }
 
-        inline auto SceneName() -> std::string_view override {
-            return "MainMenu";
-        }
+        inline auto SceneName() -> std::string_view override { return "MainMenu"; }
+
+        void Initialize() override { }
+
         void Render() override;
     };
 } // namespace rglike

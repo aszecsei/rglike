@@ -16,27 +16,9 @@ namespace rglike {
     void World::Initialize() {
         spdlog::info("Initializing world");
 
-        m_player_x = DEFAULT_PLAYER_X_POS;
-        m_player_y = DEFAULT_PLAYER_Y_POS;
+        m_player_pos.X() = DEFAULT_PLAYER_X_POS;
+        m_player_pos.Y() = DEFAULT_PLAYER_Y_POS;
     }
 
     void World::Update() { }
-
-    auto World::Render(int width, int height) const -> ftxui::Element {
-        ftxui::Elements world{};
-        world.reserve(height);
-        for (int i = 0; i < height; ++i) {
-            ftxui::Elements row;
-            row.reserve(width);
-            for (int j = 0; j < width; ++j) {
-                if (i == m_player_y && j == m_player_x) {
-                    row.push_back(ftxui::text("@"));
-                } else {
-                    row.push_back(ftxui::text("."));
-                }
-            }
-            world.push_back(ftxui::hbox(row));
-        }
-        return ftxui::vbox(world);
-    }
 } // namespace rglike

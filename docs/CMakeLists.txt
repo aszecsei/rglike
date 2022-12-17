@@ -1,6 +1,10 @@
 set(DOXYGEN_EXTRACT_ALL YES)
 set(DOXYGEN_BUILTIN_STL_SUPPORT YES)
 
-doxygen_add_docs(docs modern/lib.hpp "${CMAKE_CURRENT_SOURCE_DIR}/mainpage.md"
-                 WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/include")
+file(GLOB_RECURSE HEADER_LIST CONFIGURE_DEPENDS "${rglike_SOURCE_DIR}/include/rglike/*.hpp")
+file (GLOB_RECURSE PRIVATE_HEADER_LIST CONFIGURE_DEPENDS "${rglike_SOURCE_DIR}/src/*.hpp")
+file (GLOB_RECURSE SOURCE_LIST CONFIGURE_DEPENDS "${rglike_SOURCE_DIR}/src/*.cpp")
+
+doxygen_add_docs(docs ${HEADER_LIST} ${PRIVATE_HEADER_LIST} ${SOURCE_LIST} "${CMAKE_CURRENT_SOURCE_DIR}/mainpage.md"
+                 WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 

@@ -11,6 +11,7 @@
 namespace rglike {
     class Scene;
 
+    /// @brief A single game session. Responsible mainly for scene management.
     class Game {
     private:
         std::unique_ptr<Scene> m_current_scene{nullptr};

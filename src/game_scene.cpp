@@ -6,10 +6,11 @@
 
 #include "game_scene.hpp"
 
-#include "components/log_component.hpp"
 #include "constants.hpp"
 #include "game_log.hpp"
 #include "main_menu_scene.hpp"
+#include "ui/log_component.hpp"
+#include "ui/world_component.hpp"
 
 #include <fmt/core.h>
 #include <ftxui/component/component.hpp>
@@ -18,6 +19,8 @@
 #include <ftxui/dom/elements.hpp>
 
 namespace rglike {
+    void GameScene::Initialize() { m_world.Initialize(); }
+
     void GameScene::Render() {
         int left_size = LEFT_SIDEBAR_WIDTH;
         int right_size = RIGHT_SIDEBAR_WIDTH;
@@ -25,7 +28,7 @@ namespace rglike {
 
         auto screen = ftxui::ScreenInteractive::Fullscreen();
 
-        auto log = components::GameLogViewer(GameLog::GetInstance());
+        auto log = ui::GameLogViewer(GameLog::GetInstance());
         GameLog::GetInstance()
             .Entry()
             .Text("Welcome to")
@@ -41,14 +44,7 @@ namespace rglike {
             return ftxui::text("right") | ftxui::center;
         });
 
-        auto world = ftxui::Renderer([&] {
-            auto dim = ftxui::Terminal::Size();
-
-            auto world_width = dim.dimx - (5 + left_size + right_size);
-            auto world_height = dim.dimy - (3 + bottom_size);
-
-            return m_world.Render(world_width, world_height);
-        });
+        auto world = ui::WorldViewer(m_world);
 
         auto container = world;
         container = ftxui::ResizableSplitLeft(left, container, &left_size);
@@ -66,32 +62,13 @@ namespace rglike {
                 return true;
             }
 
-            if (event == ftxui::Event::Character(' ')) {
-                auto dim = ftxui::Terminal::Size();
-                auto world_width = dim.dimx - (5 + left_size + right_size);
-                auto world_height = dim.dimy - (3 + bottom_size);
-                GameLog::GetInstance().Log(
-                    fmt::format("World view size: ({}, {})", world_width, world_height)
-                );
-            }
-
-            if (event == ftxui::Event::ArrowUp) {
-                m_world.MovePlayerY(-1);
+            if (event == ftxui::Event::Escape) {
+                world->TakeFocus();
                 return true;
             }
 
-            if (event == ftxui::Event::ArrowRight) {
-                m_world.MovePlayerX(1);
-                return true;
-            }
-
-            if (event == ftxui::Event::ArrowDown) {
-                m_world.MovePlayerY(1);
-                return true;
-            }
-
-            if (event == ftxui::Event::ArrowLeft) {
-                m_world.MovePlayerX(-1);
+            if (event == ftxui::Event::Character('l')) {
+                log->TakeFocus();
                 return true;
             }
 

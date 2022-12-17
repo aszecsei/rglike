@@ -17,6 +17,7 @@ namespace rglike {
     void Game::Run() {
         while (true) {
             spdlog::info("Running scene '{}'", m_current_scene->SceneName());
+            m_current_scene->Initialize();
             m_current_scene->Render();
 
             if (m_next_scene != nullptr) {

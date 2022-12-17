@@ -6,29 +6,25 @@
 
 #pragma once
 
+#include "math.hpp"
+
 #include "entt/entt.hpp"
 #include "ftxui/dom/elements.hpp"
 
 namespace rglike {
     class World {
     private:
-        int m_player_x;
-        int m_player_y;
+        Vec2 m_player_pos{0, 0};
 
     public:
         entt::registry Registry;
 
-        inline void SetPlayerX(int x) { m_player_x = x; }
+        [[nodiscard]] inline auto PlayerPos() const -> Vec2 { return m_player_pos; }
 
-        inline void SetPlayerY(int y) { m_player_y = y; }
-
-        inline void MovePlayerX(int delta) { m_player_x += delta; }
-
-        inline void MovePlayerY(int delta) { m_player_y += delta; }
+        inline void MovePlayer(Vec2 dir) { m_player_pos += dir; }
 
         void Initialize();
 
         void Update();
-        [[nodiscard]] auto Render(int width, int height) const -> ftxui::Element;
     };
 } // namespace rglike
