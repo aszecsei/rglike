@@ -92,8 +92,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(entt)
 # Adds EnTT::EnTT
 
+# Parser-Combinator
+FetchContent_Declare(
+    lexy
+        GIT_REPOSITORY https://github.com/foonathan/lexy.git
+        GIT_TAG v2022.12.0
+)
+FetchContent_MakeAvailable(lexy)
+# Adds foonathan::lexy
+
 # The compiled library code is here
-add_subdirectory(src)
+add_subdirectory(libs)
 
 # The executable code is here
 add_subdirectory(game)

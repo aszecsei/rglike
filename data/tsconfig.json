@@ -1,0 +1,19 @@
+{
+    "$schema": "https://raw.githubusercontent.com/TypeScriptToLua/TypeScriptToLua/master/tsconfig-schema.json",
+    "compilerOptions": {
+        "outDir": "lua",
+        "types": [
+            "lua-types/jit",
+            "@typescript-to-lua/language-extensions",
+            "jest"
+        ]
+    },
+    "extends": "./tsconfig.base.json",
+    "include": ["src/**/*"],
+    "tstl": {
+        "luaTarget": "JIT",
+        "sourceMapTraceback": true,
+        "luaLibImport": "require",
+        "tstlVerbose": true,
+    }
+}

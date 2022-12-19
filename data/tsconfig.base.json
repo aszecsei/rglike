@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "lib": ["esnext"],
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "types": [
+            "lua-types/jit",
+            "@typescript-to-lua/language-extensions",
+            "jest"
+        ]
+    },
+}

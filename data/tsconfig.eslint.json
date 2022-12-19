@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "allowJs": true,
+    },
+    "extends": "./tsconfig.base.json",
+    "include": [
+        "src/**/*",
+        "__tests__/**/*",
+        ".eslintrc.js",
+        "jest.config.js"
+    ]
+}
