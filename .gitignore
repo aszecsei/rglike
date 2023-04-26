@@ -58,6 +58,8 @@ dkms.conf
 
 # CMake build directory
 build
+cmake-build-*/
+.cache/
 
 # Log files
 log.txt
