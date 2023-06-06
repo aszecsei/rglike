@@ -39,7 +39,7 @@ target_link_libraries(rglike
         PUBLIC ftxui::dom
         PUBLIC ftxui::component
         PUBLIC EnTT::EnTT
-        PRIVATE fluent)
+        PRIVATE fluency)
 
 # All users of this library will need at least C++11
 target_compile_features(rglike PUBLIC cxx_std_11)

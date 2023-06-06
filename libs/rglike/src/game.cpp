@@ -8,6 +8,8 @@
 #include "main_menu_scene.hpp"
 #include <spdlog/spdlog.h>
 
+#include <fluency.hpp>
+
 namespace rglike {
     void Game::Initialize() {
         spdlog::info("Initializing");

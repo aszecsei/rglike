@@ -92,14 +92,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(entt)
 # Adds EnTT::EnTT
 
-# Parser-Combinator
+# Rust-CMake Integration
 FetchContent_Declare(
-    lexy
-        GIT_REPOSITORY https://github.com/foonathan/lexy.git
-        GIT_TAG v2022.12.0
+        Corrosion
+        GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
+        GIT_TAG v0.4 # Optionally specify a commit hash, version tag or branch here
 )
-FetchContent_MakeAvailable(lexy)
-# Adds foonathan::lexy
+FetchContent_MakeAvailable(Corrosion)
+# Adds corrosion_import_crate
 
 # The compiled library code is here
 add_subdirectory(libs)
