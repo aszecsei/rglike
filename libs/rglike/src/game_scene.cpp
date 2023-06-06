@@ -31,10 +31,13 @@ namespace rglike {
         auto log = ui::GameLogViewer(GameLog::GetInstance());
         GameLog::GetInstance()
             .Entry()
-            .Text("Welcome to")
+            .Text("Welcome to ")
             .Color(ftxui::Color::Red)
             .Blink(true)
             .Text("rglike")
+            .Color(ftxui::Color::Default)
+            .Blink(false)
+            .Text("!")
             .Log();
 
         auto left = ftxui::Renderer([] {

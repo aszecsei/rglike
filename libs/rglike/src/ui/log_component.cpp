@@ -5,11 +5,26 @@
  */
 
 #include "log_component.hpp"
+#include <algorithm>
 #include <sstream>
 
 using namespace ftxui;
 
 namespace rglike::ui {
+    void Tokenize(
+        const std::string_view& s, std::vector<std::string>& tokens, const std::string_view& delims
+    ) {
+        auto pos = s.begin();
+        auto end = pos;
+        while (true) {
+            end = std::find_first_of(pos, s.end(), delims.begin(), delims.end());
+            tokens.emplace_back(pos, end);
+
+            if (end == s.end()) { return; }
+            pos = end + 1;
+        }
+    }
+
     auto Split(const std::vector<GameLogFragment>& the_text) -> ftxui::Elements {
         Elements output{};
         output.push_back(text(":: "));
@@ -17,23 +32,30 @@ namespace rglike::ui {
             std::stringstream ss(fragment.text);
             std::string word;
             bool is_first = true;
-            while (std::getline(ss, word, ' ')) {
+
+            std::vector<std::string> words{};
+            Tokenize(fragment.text, words, " ");
+
+            for (const auto& word : words) {
                 Decorator text_decorator = color(fragment.color) | bgcolor(fragment.bg_color);
                 if (fragment.bold) { text_decorator = text_decorator | bold; }
                 if (fragment.dim) { text_decorator = text_decorator | dim; }
                 if (fragment.underlined) { text_decorator = text_decorator | underlined; }
                 if (fragment.blinking) { text_decorator = text_decorator | blink; }
 
-                // TODO(BUG): Handle the case where fragments should be concatenated w/o spaces
-
-                output.push_back(text(word) | text_decorator);
+                if (is_first) {
+                    output.push_back(text(word) | text_decorator);
+                } else {
+                    output.push_back(text(" " + word) | text_decorator);
+                }
+                is_first = false;
             }
         }
         return output;
     }
 
     auto LogParagraphAlignLeft(const std::vector<GameLogFragment>& the_text) -> ftxui::Element {
-        static const auto config = ftxui::FlexboxConfig().SetGap(1, 0);
+        static const auto config = ftxui::FlexboxConfig().SetGap(0, 0);
         return ftxui::flexbox(Split(the_text), config);
     }
 
@@ -105,4 +127,4 @@ namespace rglike::ui {
     auto GameLogViewer(const GameLog& gameLog) -> ftxui::Component {
         return Make<GameLogComponent>(gameLog);
     }
-} // namespace rglike::components
+} // namespace rglike::ui

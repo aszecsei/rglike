@@ -104,8 +104,8 @@ FetchContent_MakeAvailable(Corrosion)
 # Lua embedding
 FetchContent_Declare(
         lua
-        GIT_REPOSITORY "https://github.com/marovira/lua"
-        GIT_TAG v5.4.4
+        GIT_REPOSITORY https://github.com/marovira/lua.git
+        GIT_TAG 5.4.4
 )
 FetchContent_MakeAvailable(lua)
 # Adds lua::lua

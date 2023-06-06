@@ -6,7 +6,6 @@
 #include "game_log.hpp"
 
 #include "constants.hpp"
-#include <sstream>
 
 namespace rglike {
     auto LogEntry::Color(ftxui::Color color) -> LogEntry& {
