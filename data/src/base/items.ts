@@ -8,7 +8,7 @@ export const DEFAULT_ITEMS = {
 //#region Magic Tomes
 rglike.defineItem({
     id: DEFAULT_ITEMS.BEGIN_MAGIC,
-    name: "Beginner's Magic",
+    name: rglike.localize('beginner_magic_title', "Beginner's Magic"),
     renderable: {
         glyph: '¶',
         fg: 'M',
@@ -22,6 +22,6 @@ rglike.defineItem({
     },
     weight: 0.5,
     base_value: 50,
-    vendor_category: DEFAULT_CATEGORIES.ALCHEMY,
+    vendor_category: DEFAULT_CATEGORIES.ALCHEMY.id,
 })
 //#endregion

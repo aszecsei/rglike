@@ -7,19 +7,19 @@ export const DEFAULT_FACTIONS = {
 
 rglike.defineFaction({
     id: DEFAULT_FACTIONS.PLAYER,
-    name: 'Player',
+    name: rglike.localize('player_faction_name', 'Player'),
     responses: {},
 })
 rglike.defineFaction({
     id: DEFAULT_FACTIONS.MINDLESS,
-    name: 'Mindless',
+    name: rglike.localize('mindless_faction_name', 'Mindless'),
     responses: {
         [rglike.Faction.DEFAULT]: rglike.Response.ATTACK,
     },
 })
 rglike.defineFaction({
     id: DEFAULT_FACTIONS.TOWNSFOLK,
-    name: 'Townsfolk',
+    name: rglike.localize('townsfolk_faction_name', 'Townsfolk'),
     responses: {
         [rglike.Faction.DEFAULT]: rglike.Response.FLEE,
         [rglike.Faction.SELF]: rglike.Response.IGNORE,
@@ -28,7 +28,7 @@ rglike.defineFaction({
 })
 rglike.defineFaction({
     id: DEFAULT_FACTIONS.BANDITS,
-    name: 'Bandits',
+    name: rglike.localize('bandits_faction_name', 'Bandits'),
     responses: {
         [rglike.Faction.DEFAULT]: rglike.Response.ATTACK,
         [rglike.Faction.SELF]: rglike.Response.IGNORE,

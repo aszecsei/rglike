@@ -44,7 +44,11 @@ declare namespace rglike {
     }
     function defineFaction(faction: Faction): void
 
-    function defineVendorCategory(category: string): void
+    interface VendorCategory {
+        id: string
+        name: string
+    }
+    function defineVendorCategory(category: VendorCategory): void
 
     interface Renderable {
         glyph: string
@@ -95,4 +99,11 @@ declare namespace rglike {
         effects?: Effects
     }
     function defineSpell(spell: Spell): void
+
+    function setLocale(locale: string): void
+    interface Arg {
+        key: string
+        value: string | number
+    }
+    function localize(key: string, fallback: string, args?: Arg[]): string
 }

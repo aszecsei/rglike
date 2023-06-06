@@ -101,6 +101,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Corrosion)
 # Adds corrosion_import_crate
 
+# Lua embedding
+FetchContent_Declare(
+        lua
+        GIT_REPOSITORY "https://github.com/marovira/lua"
+        GIT_TAG v5.4.4
+)
+FetchContent_MakeAvailable(lua)
+# Adds lua::lua
+
 # The compiled library code is here
 add_subdirectory(libs)
 

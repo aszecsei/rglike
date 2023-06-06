@@ -9,11 +9,11 @@ local DEFAULT_SPELLS = ____spells.DEFAULT_SPELLS
 ____exports.DEFAULT_ITEMS = {BEGIN_MAGIC = "BeginnerMagic"}
 rglike.defineItem({
     id = ____exports.DEFAULT_ITEMS.BEGIN_MAGIC,
-    name = "Beginner's Magic",
+    name = rglike.localize("beginner_magic_title", "Beginner's Magic"),
     renderable = {glyph = "¶", fg = "M", bg = "k", order = 2},
     consumable = {effects = {teach_spell = DEFAULT_SPELLS.FIREBALL}},
     weight = 0.5,
     base_value = 50,
-    vendor_category = DEFAULT_CATEGORIES.ALCHEMY
+    vendor_category = DEFAULT_CATEGORIES.ALCHEMY.id
 })
 return ____exports

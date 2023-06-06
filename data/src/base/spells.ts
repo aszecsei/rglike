@@ -5,7 +5,7 @@ export const DEFAULT_SPELLS = {
 
 rglike.defineSpell({
     id: DEFAULT_SPELLS.MAGIC_MISSILE,
-    name: 'Magic Missile',
+    name: rglike.localize('magic_missile_spell', 'Magic Missile'),
     mana_cost: 10,
     effects: {
         ranged: 6,

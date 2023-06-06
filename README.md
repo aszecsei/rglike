@@ -10,8 +10,8 @@
 
 ## Getting Started
 
-This project uses CMake as a build system, with no external dependencies.
-So long as you have a C++ compiler able to handle C++17, you should be able to
+This project uses CMake and Cargo as build systems, with no external dependencies.
+So long as you have a C++ compiler able to handle C++17, alongside Rust, you should be able to
 build this project.
 
 ```shell
@@ -28,12 +28,16 @@ ninja
 ## Third-Party Libraries
 
 This project uses a number of third-party dependencies which should be managed by
-CMake's FetchContent system. Specifically:
+either CMake's FetchContent system or Cargo. Specifically:
 
 - [fmt](https://github.com/fmtlib/fmt)
 - [spdlog](https://github.com/gabime/spdlog)
 - [CLI11](https://github.com/CLIUtils/CLI11)
 - [ftxui](https://github.com/ArthurSonzogni/ftxui)
 - [EnTT](https://github.com/skypjack/entt)
+- [Corrosion](https://github.com/corrosion-rs/corrosion)
+- [cbindgen](https://github.com/mozilla/cbindgen)
+- [fluent-rs](https://github.com/projectfluent/fluent-rs)
+- [Lua 5.4](https://github.com/lua/lua) (using the CMake bundle from [marovira](https://github.com/marovira/lua))
 
 Please consider supporting the maintainers of these libraries!

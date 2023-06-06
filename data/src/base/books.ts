@@ -1,5 +1,12 @@
 rglike.defineBook({
     id: 'BasicBook',
-    name: 'Basic Book Title',
-    pages: [['HELLO!'], ['WORLD!']],
+    name: rglike.localize('basic_book_title', "Basic Book"),
+    pages: [
+        [
+            rglike.localize('basic_book_page_1', 'HELLO!')
+        ],
+        [
+            rglike.localize('basic_book_page_2', 'WORLD!')
+        ],
+    ],
 })
