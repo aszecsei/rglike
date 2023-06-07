@@ -110,6 +110,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(lua)
 # Adds lua::lua
 
+# Parser-Combinator
+FetchContent_Declare(
+        lexy
+        GIT_REPOSITORY https://github.com/foonathan/lexy.git
+        GIT_TAG v2022.12.1
+)
+FetchContent_MakeAvailable(lexy)
+# Adds foonathan::lexy
+
 # The compiled library code is here
 add_subdirectory(libs)
 

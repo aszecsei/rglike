@@ -4,9 +4,10 @@
 # Optionally glob, but only for CMake 3.12 or later:
 # file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${ModernCMakeExample_SOURCE_DIR}/include/modern/*.hpp")
 set(HEADER_LIST
-        "include/rglike/rglike.hpp"
-        "include/rglike/game.hpp"
-        "include/rglike/scene.hpp")
+        include/rglike/rglike.hpp
+        include/rglike/game.hpp
+        include/rglike/scene.hpp
+        include/rglike/formatting.hpp)
 
 # Make an automatic library - will be static or dynamic based on user setting
 add_library(rglike
@@ -26,7 +27,8 @@ add_library(rglike
         src/main_menu_scene.cpp
         src/main_menu_scene.hpp
         src/math.cpp
-        src/math.hpp)
+        src/math.hpp
+        src/formatting.cpp)
 
 # We need this directory, and users of our library will need it too
 target_include_directories(rglike PUBLIC include)
@@ -39,6 +41,7 @@ target_link_libraries(rglike
         PUBLIC ftxui::dom
         PUBLIC ftxui::component
         PUBLIC EnTT::EnTT
+        PRIVATE foonathan::lexy
         PRIVATE fluency)
 
 # All users of this library will need at least C++11
