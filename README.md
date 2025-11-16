@@ -10,7 +10,7 @@
 
 ## Getting Started
 
-This project uses CMake and Cargo as build systems, with no external dependencies.
+This project uses CMake as its build system, with no external dependencies.
 So long as you have a C++ compiler able to handle C++17, you should be able to
 build this project.
 
