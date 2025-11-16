@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.27)
-project(rg_oct_25)
+project(rglike)
 
 set(CMAKE_CXX_STANDARD 20)
 
@@ -53,6 +53,15 @@ FetchContent_Declare(
     GIT_TAG v1.14.1
 )
 FetchContent_MakeAvailable(spdlog)
+
+# Fetch CLI11
+FetchContent_Declare(
+        cli11_proj
+        QUIET
+        GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+        GIT_TAG v2.6.1
+)
+FetchContent_MakeAvailable(cli11_proj)
 
 # Add libraries subdirectory
 add_subdirectory(libs)

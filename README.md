@@ -11,7 +11,7 @@
 ## Getting Started
 
 This project uses CMake as its build system, with no external dependencies.
-So long as you have a C++ compiler able to handle C++17, you should be able to
+So long as you have a C++ compiler able to handle C++20, you should be able to
 build this project.
 
 ```shell
