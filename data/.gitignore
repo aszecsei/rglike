@@ -1,41 +1,40 @@
-lib-cov
-*.seed
-*.log
-*.csv
-*.dat
+# Compiled Lua sources
+luac.out
+
+# luarocks build files
+*.src.rock
+*.zip
+*.tar.gz
+
+# Object files
+*.o
+*.os
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+*.def
+*.exp
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
 *.out
-*.pid
-*.gz
-*.swp
-
-pids
-logs
-results
-tmp
-
-# Build
-public/css/main.css
-
-# Coverage reports
-coverage
-
-# API keys and secrets
-.env
-
-# Dependency directory
-node_modules
-bower_components
-
-# Editors
-.idea
-*.iml
-
-# OS metadata
-.DS_Store
-Thumbs.db
-
-# Ignore built ts files
-dist/**/*
-
-# ignore yarn.lock
-yarn.lock
+*.app
+*.i*86
+*.x86_64
+*.hex
