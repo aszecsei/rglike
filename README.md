@@ -36,5 +36,6 @@ either CMake's FetchContent system or Cargo. Specifically:
 - [ftxui](https://github.com/ArthurSonzogni/ftxui)
 - [EnTT](https://github.com/skypjack/entt)
 - [Lua 5.4](https://github.com/lua/lua) (using the CMake bundle from [marovira](https://github.com/marovira/lua))
+  - [sol2](https://github.com/ThePhD/sol2)
 
 Please consider supporting the maintainers of these libraries!
