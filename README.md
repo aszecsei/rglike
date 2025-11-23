@@ -25,6 +25,8 @@ ninja
 ./game/game
 ```
 
+For use with Visual Studio, open `rglike.sln` in the `build` directory.
+
 ## Third-Party Libraries
 
 This project uses a number of third-party dependencies which should be managed by
@@ -39,3 +41,11 @@ either CMake's FetchContent system or Cargo. Specifically:
   - [sol2](https://github.com/ThePhD/sol2)
 
 Please consider supporting the maintainers of these libraries!
+
+## Known Issues
+
+### Visual Studio
+
+When opening the `.sln`, you may find the build process not working with error `Unable to start program '{Directory}\Debug\ALL_BUILD'. Access is denied.`.  This is because the default startup project is `ALL_BUILD`, but you actually want to choose `rglike`. Follow `Local Windows Debugger (Dropdown) > Configure Startup Projects... -> Single Startup Project > rglike`.
+
+Now that the project is running, you may find data isn't properly populating. In some versions of Visual Studio, it will run from the working directory rather than the output directory. To solve this, enter the `rglike` project properties (Right click the `rglike` project in `Solution Explorer` and then select `Properties`.) Once there: `Configuration Properties > Build Events > Post-Build Event -> Command Line (Drop Down) > Edit`. In the resulting editor, under the `setlocal` line, then duplicate the `cmake` command line. In the duplicated command, remove `Debug` in the path. 
