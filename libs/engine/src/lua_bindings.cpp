@@ -94,10 +94,17 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             // Foreground color (required)
             ftxui::Color fg_color = parse_rgb_color(terrain_table["fg_color"]);
 
+            // Middle ground color (optional)
+            ftxui::Color mg_color = ftxui::Color::Default;
+            sol::optional<sol::table> mg_color_opt = terrain_table["mg_color"];
+            if (mg_color_opt.has_value()) { 
+                mg_color = parse_rgb_color(*mg_color_opt); 
+            }
+
             // Background color (optional)
             ftxui::Color bg_color = ftxui::Color::Default;
             sol::optional<sol::table> bg_color_opt = terrain_table["bg_color"];
-            if (bg_color_opt) {
+            if (bg_color_opt.has_value()) {
                 bg_color = parse_rgb_color(*bg_color_opt);
             }
 
@@ -107,6 +114,7 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             Terrain terrain;
             terrain.glyph = glyph;
             terrain.fg_color = fg_color;
+            terrain.mg_color = mg_color;
             terrain.bg_color = bg_color;
             terrain.passable = passable;
             terrain.blocks_vision = blocks_vision;
@@ -118,7 +126,7 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
         LuaFunctionDoc{
             .description = "Create a terrain type",
             .params = {
-                {"terrain_table", "table", "Table with fields: id, glyph, fg_color (RGB array), bg_color (optional RGB array), passable, blocks_vision"}
+                {"terrain_table", "table", "Table with fields: id, glyph, fg_color (RGB array), mg_color (optional RGB array), bg_color (optional RGB array), passable, blocks_vision"}
             }
         }
     );
