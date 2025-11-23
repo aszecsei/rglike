@@ -15,7 +15,9 @@ World::World(int width, int height, std::string map_name) {
     auto& map_component = registry_.emplace<MapComponent>(map_entity_, width, height, 1, std::move(map_name));
 
     // Initialize with default floor terrain
-    Terrain default_floor{".", ftxui::Color::White, ftxui::Color::Default, true};
+    Terrain default_floor{
+        ".", ftxui::Color::White, ftxui::Color::Default, ftxui::Color::Default, true
+    };
     for (auto& tile : map_component.map.tiles) {
         tile = default_floor;
     }

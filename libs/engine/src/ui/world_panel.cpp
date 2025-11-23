@@ -72,7 +72,12 @@ namespace engine::ui {
                         if (auto terrain = world_.get_terrain(world_x, world_y); terrain.has_value()) {
                             cell = text(terrain->glyph);
                             // Dim colors for fog-of-war
-                            cell |= color(Color::GrayDark);
+                            if (terrain->mg_color != Color::Default) {
+                                cell |= color(terrain->mg_color);
+                            } 
+                            else {
+                                cell |= color(Color::GrayDark);
+                            }
                         } else {
                             cell = text(" ");
                         }
