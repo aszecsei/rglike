@@ -1,5 +1,6 @@
 #include "engine/engine.h"
 #include "engine/lua_bindings.h"
+#include "utils.hpp"
 #include <ftxui/component/screen_interactive.hpp>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -22,6 +23,17 @@ Engine::Engine() {
 
     // Initialize Lua bindings
     LuaBindings::initialize(lua_, this, logger_);
+    auto lua_exception_handler = utils::fnptr<int(lua_State*, sol::optional<const std::exception&>, sol::string_view)>(
+        [this](lua_State* lua_state, sol::optional<const std::exception&> maybe_exception, sol::string_view description) {
+            if (maybe_exception.has_value()) {
+                logger_->error("<LuaError>[Exception]: {}", maybe_exception.value().what());
+            } else {
+                logger_->error("<LuaError>[Error]: {}", description);
+            }
+            return sol::stack::push(lua_state, description);
+        }
+    );
+    lua_.set_exception_handler(lua_exception_handler);
     logger_->info("Lua initialized");
 }
 
@@ -38,6 +50,7 @@ void Engine::load_data_files(const std::string& data_dir) {
     }
 
     logger_->info("Loading data files from '{}'", data_dir);
+    bool failed_any_load = false;
 
     // Recursively iterate through all .lua files in the data directory
     for (const auto& entry : fs::recursive_directory_iterator(data_dir)) {
@@ -50,10 +63,12 @@ void Engine::load_data_files(const std::string& data_dir) {
                 logger_->debug("Successfully loaded: {}", path.string());
             } catch (const sol::error& e) {
                 logger_->error("Error loading {}: {}", path.string(), e.what());
+                failed_any_load = true;
             }
         }
     }
 
+    loaded_ = !failed_any_load;
     logger_->info("Finished loading data files");
 }
 

@@ -7,6 +7,7 @@ add_library(engine STATIC
     src/ui/log_panel.cpp
     src/ui/world_panel.cpp
     src/action.cpp
+        src/utils.hpp
 )
 
 target_include_directories(engine PUBLIC

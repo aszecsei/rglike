@@ -16,6 +16,12 @@ MainMenuScene::MainMenuScene(engine::Engine* engine) : Scene(engine) {
         settings_button,
         quit_button
     }, &selected_);
+    if (!get_engine()->loaded()) {
+        menu_container = Container::Vertical({
+            settings_button,
+            quit_button
+        }, &selected_);
+    }
 
     // Wrap in a renderer to add title and styling
     component_ = Renderer(menu_container, [this, menu_container] {
@@ -23,6 +29,14 @@ MainMenuScene::MainMenuScene(engine::Engine* engine) : Scene(engine) {
         auto subtitle = text("A Terminal Roguelike Adventure") | dim | center;
 
         auto menu = menu_container->Render() | center;
+        if (!get_engine()->loaded()) {
+            menu = vbox({
+                text(" Error: Failed to load game data files. ") | color(Color::Red) | center,
+                text("Please check the logs for details.") | color(Color::Red) | center,
+                text(""),
+                menu_container->Render() | center,
+            });
+        }
 
         return vbox({
             text("") | flex,
