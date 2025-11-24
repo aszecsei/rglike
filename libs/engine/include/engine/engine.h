@@ -60,6 +60,8 @@ public:
     RaceRegistry& get_race_registry() { return race_registry_; }
     CharacterClassRegistry& get_class_registry() { return class_registry_; }
 
+    [[nodiscard]] bool loaded() const { return loaded_; }
+
 private:
     sol::state lua_;
     std::shared_ptr<spdlog::logger> logger_;
@@ -72,6 +74,7 @@ private:
     RaceRegistry race_registry_;
     CharacterClassRegistry class_registry_;
     bool running_ = false;
+    bool loaded_ = false;
 };
 
 } // namespace engine
