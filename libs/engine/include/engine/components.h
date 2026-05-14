@@ -2,9 +2,12 @@
 
 #include "map.h"
 #include "stats.h"
+#include <entt/entt.hpp>
 #include <ftxui/screen/color.hpp>
+#include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace engine {
 
@@ -141,6 +144,63 @@ struct CombatStats {
 
     CombatStats() = default;
     CombatStats(int defense, int power) : defense(defense), power(power) {}
+};
+
+// Marks an entity as an item (on the ground or carried). The `item_id` links
+// back to the Item template so stack merging, drop respawning, and modal
+// rendering can look up the canonical name/glyph without duplicating them.
+// `count` is meaningful only when `is_stackable` is true; for non-stackable
+// items it is always 1.
+struct ItemComponent {
+    std::string item_id;
+    bool is_stackable = false;
+    int count = 1;
+};
+
+// Tag attached to a non-stackable item entity while it is held in an
+// InventoryComponent. The item entity keeps Renderable/NameComponent/Item
+// for display purposes but loses Position so it does not render in the world.
+struct Carried {
+    entt::entity owner = entt::null;
+};
+
+// One slot of an InventoryComponent. Exactly one of the two payloads is set:
+//   - unique_item present  → non-stackable: holds an entt::entity handle.
+//                            count is always 1.
+//   - stack_item_id present → stackable: holds the template id and `count`.
+// `letter` is assigned at pickup ('a'..'z') and stays stable until the slot
+// empties, so the player's mental model of "slot a is the potion" survives
+// drops of other slots.
+struct InventorySlot {
+    char letter = 'a';
+    std::optional<entt::entity> unique_item;
+    std::optional<std::string> stack_item_id;
+    int count = 0;
+};
+
+// A bag. Slots are unordered; the renderer sorts by `letter`. The 26-slot cap
+// is enforced by PickupAction; the vector itself is unbounded.
+struct InventoryComponent {
+    std::vector<InventorySlot> slots;
+    static constexpr std::size_t MAX_SLOTS = 26;
+};
+
+// One roll for a mob's drop table. Each entry is independent: the entry
+// drops with probability `chance`; when it drops, the count is uniformly
+// chosen from [min_count, max_count]. Non-stackable items ignore the count
+// (they always spawn one entity per success).
+struct DropEntry {
+    std::string item_id;
+    float chance = 1.0f;
+    int min_count = 1;
+    int max_count = 1;
+};
+
+// Attached at mob-spawn time, copied from the Mob template. Living on the
+// entity avoids needing a template-id lookup from arbitrary entity handles
+// later — the death handler in AttackAction just queries this component.
+struct DropsComponent {
+    std::vector<DropEntry> entries;
 };
 
 } // namespace engine

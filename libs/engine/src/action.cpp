@@ -3,6 +3,7 @@
 #include <engine/components.h>
 #include <engine/constants.h>
 #include <engine/faction.h>
+#include <engine/item.h>
 #include <engine/stats.h>
 #include <ftxui/screen/color.hpp>
 #include <algorithm>
@@ -282,6 +283,43 @@ ActionResult AttackAction::execute(World& world, std::queue<std::unique_ptr<Acti
                 }
             }
 
+            // Roll drops before destroying the target so we still have its
+            // position. Each entry is an independent Bernoulli trial; on
+            // success, count is uniform on [min_count, max_count]. Stackable
+            // items spawn a single ground entity with the rolled count;
+            // non-stackable items spawn one entity per unit.
+            const int drop_x = target_pos->x;
+            const int drop_y = target_pos->y;
+            if (auto* drops = registry.try_get<DropsComponent>(target_)) {
+                auto& rng = world.get_rng();
+                const auto* item_reg = world.get_item_registry();
+                for (const auto& entry : drops->entries) {
+                    if (rng.uniform() > entry.chance) continue;
+                    int count = (entry.max_count <= entry.min_count)
+                                ? entry.min_count
+                                : rng.range(entry.min_count, entry.max_count);
+                    if (count <= 0) continue;
+
+                    bool stackable = false;
+                    if (item_reg) {
+                        if (auto tmpl = item_reg->get(entry.item_id)) {
+                            stackable = tmpl->is_stackable;
+                        } else {
+                            // Unknown id — skip silently; the data file is at fault
+                            // and the load-time logger will already have shown errors.
+                            continue;
+                        }
+                    }
+                    if (stackable) {
+                        world.spawn_ground_item(entry.item_id, drop_x, drop_y, count);
+                    } else {
+                        for (int i = 0; i < count; ++i) {
+                            world.spawn_ground_item(entry.item_id, drop_x, drop_y, 1);
+                        }
+                    }
+                }
+            }
+
             registry.destroy(target_);
         }
     }
@@ -292,6 +330,167 @@ ActionResult AttackAction::execute(World& world, std::queue<std::unique_ptr<Acti
 std::string AttackAction::description() const {
     std::ostringstream oss;
     oss << "Attack entity " << static_cast<uint32_t>(target_);
+    return oss.str();
+}
+
+// Allocate the next unused inventory letter. Returns 0 if all 26 slots taken.
+static char allocate_inventory_letter(const InventoryComponent& inv) {
+    if (inv.slots.size() >= InventoryComponent::MAX_SLOTS) return 0;
+    bool used[26] = {false};
+    for (const auto& slot : inv.slots) {
+        int idx = slot.letter - 'a';
+        if (idx >= 0 && idx < 26) used[idx] = true;
+    }
+    for (int i = 0; i < 26; ++i) {
+        if (!used[i]) return static_cast<char>('a' + i);
+    }
+    return 0;
+}
+
+// Build a name string for log messages, including a stack-count suffix for
+// stackable items so "You pick up Gold (x5)" reads naturally.
+static std::string item_display_with_count(const std::string& base_name,
+                                            const ItemComponent& ic) {
+    if (ic.is_stackable && ic.count > 1) {
+        return base_name + " (x" + std::to_string(ic.count) + ")";
+    }
+    return base_name;
+}
+
+ActionResult PickupAction::execute(World& world, std::queue<std::unique_ptr<Action>>&) {
+    auto& registry = world.get_registry();
+    if (!registry.valid(actor_) || !registry.valid(item_)) {
+        return {ActionResult::Status::Invalid, 0};
+    }
+
+    auto* actor_pos = registry.try_get<Position>(actor_);
+    auto* inv = registry.try_get<InventoryComponent>(actor_);
+    auto* item_pos = registry.try_get<Position>(item_);
+    auto* item_comp = registry.try_get<ItemComponent>(item_);
+    if (!actor_pos || !inv || !item_pos || !item_comp) {
+        return {ActionResult::Status::Invalid, 0};
+    }
+    if (actor_pos->x != item_pos->x || actor_pos->y != item_pos->y) {
+        return {ActionResult::Status::Invalid, 0};
+    }
+
+    const bool actor_is_player = registry.all_of<Player>(actor_);
+    auto& log = world.get_game_log();
+    const std::string item_name = registry.try_get<NameComponent>(item_)
+                                  ? registry.get<NameComponent>(item_).name
+                                  : std::string{"item"};
+
+    // Stackable + matching slot exists: merge.
+    if (item_comp->is_stackable) {
+        for (auto& slot : inv->slots) {
+            if (slot.stack_item_id && *slot.stack_item_id == item_comp->item_id) {
+                slot.count += item_comp->count;
+                if (actor_is_player) {
+                    log.entry().text("You pick up ").bold().text(
+                        item_display_with_count(item_name, *item_comp)).log();
+                }
+                registry.destroy(item_);
+                return {ActionResult::Status::Success, constants::ACTION_COST_PICKUP};
+            }
+        }
+    }
+
+    // Need a new slot.
+    char letter = allocate_inventory_letter(*inv);
+    if (letter == 0) {
+        if (actor_is_player) {
+            log.entry().color(ftxui::Color::YellowLight).text("Your pack is full.").log();
+        }
+        return {ActionResult::Status::Failure, constants::ACTION_COST_PICKUP};
+    }
+
+    InventorySlot new_slot;
+    new_slot.letter = letter;
+    if (item_comp->is_stackable) {
+        new_slot.stack_item_id = item_comp->item_id;
+        new_slot.count = item_comp->count;
+        if (actor_is_player) {
+            log.entry().text("You pick up ").bold().text(
+                item_display_with_count(item_name, *item_comp)).text(" (").text(std::string(1, letter)).text(").").log();
+        }
+        registry.destroy(item_);
+    } else {
+        // Non-stackable: detach Position so the item disappears from the world,
+        // tag with Carried, and store the entity handle on the slot.
+        new_slot.unique_item = item_;
+        new_slot.count = 1;
+        registry.remove<Position>(item_);
+        registry.emplace_or_replace<Carried>(item_, Carried{actor_});
+        if (actor_is_player) {
+            log.entry().text("You pick up ").bold().text(item_name)
+               .text(" (").text(std::string(1, letter)).text(").").log();
+        }
+    }
+    inv->slots.push_back(std::move(new_slot));
+    return {ActionResult::Status::Success, constants::ACTION_COST_PICKUP};
+}
+
+std::string PickupAction::description() const {
+    std::ostringstream oss;
+    oss << "Pick up entity " << static_cast<uint32_t>(item_);
+    return oss.str();
+}
+
+ActionResult DropAction::execute(World& world, std::queue<std::unique_ptr<Action>>&) {
+    auto& registry = world.get_registry();
+    if (!registry.valid(actor_)) return {ActionResult::Status::Invalid, 0};
+
+    auto* actor_pos = registry.try_get<Position>(actor_);
+    auto* inv = registry.try_get<InventoryComponent>(actor_);
+    if (!actor_pos || !inv) return {ActionResult::Status::Invalid, 0};
+
+    auto it = std::find_if(inv->slots.begin(), inv->slots.end(),
+                            [this](const InventorySlot& s) { return s.letter == letter_; });
+    if (it == inv->slots.end()) return {ActionResult::Status::Invalid, 0};
+
+    const bool actor_is_player = registry.all_of<Player>(actor_);
+    auto& log = world.get_game_log();
+
+    if (it->stack_item_id) {
+        // Stackable: spawn the whole stack on the ground as a single entity.
+        const std::string id = *it->stack_item_id;
+        const int count = it->count;
+        auto e = world.spawn_ground_item(id, actor_pos->x, actor_pos->y, count);
+        if (e == entt::null) {
+            // Item id not registered — refuse to lose the stack.
+            return {ActionResult::Status::Invalid, 0};
+        }
+        if (actor_is_player) {
+            std::string name = registry.try_get<NameComponent>(e)
+                               ? registry.get<NameComponent>(e).name : id;
+            if (count > 1) name += " (x" + std::to_string(count) + ")";
+            log.entry().text("You drop ").bold().text(name).log();
+        }
+    } else if (it->unique_item) {
+        entt::entity carried = *it->unique_item;
+        if (!registry.valid(carried)) {
+            // Defensive — slot points at a dead entity. Clear it.
+            inv->slots.erase(it);
+            return {ActionResult::Status::Invalid, 0};
+        }
+        registry.emplace_or_replace<Position>(carried, actor_pos->x, actor_pos->y);
+        registry.remove<Carried>(carried);
+        if (actor_is_player) {
+            std::string name = registry.try_get<NameComponent>(carried)
+                               ? registry.get<NameComponent>(carried).name : std::string{"item"};
+            log.entry().text("You drop ").bold().text(name).log();
+        }
+    } else {
+        return {ActionResult::Status::Invalid, 0};
+    }
+
+    inv->slots.erase(it);
+    return {ActionResult::Status::Success, constants::ACTION_COST_DROP};
+}
+
+std::string DropAction::description() const {
+    std::ostringstream oss;
+    oss << "Drop slot " << letter_;
     return oss.str();
 }
 

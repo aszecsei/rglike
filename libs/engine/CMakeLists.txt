@@ -7,6 +7,7 @@ add_library(engine STATIC
     src/ui/log_panel.cpp
     src/ui/world_panel.cpp
     src/ui/stats_panel.cpp
+    src/ui/inventory_panel.cpp
     src/action.cpp
         src/utils.hpp
 )

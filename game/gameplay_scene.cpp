@@ -3,13 +3,17 @@
 #include <engine/ui/log_panel.h>
 #include <engine/ui/world_panel.h>
 #include <engine/ui/stats_panel.h>
+#include <engine/ui/inventory_panel.h>
+#include <engine/action.h>
 #include <engine/builders/town_builder.h>
+#include <engine/components.h>
 #include <engine/constants.h>
 #include <engine/map_builder.h>
 #include <engine/well512.h>
 #include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <spdlog/spdlog.h>
+#include <algorithm>
 #include "main_menu_scene.h"
 #include "game_over_scene.h"
 
@@ -18,8 +22,11 @@ using namespace ftxui;
 GameplayScene::GameplayScene(engine::Engine* engine, const engine::CharacterCreationData& character_data)
     : engine::Scene(engine), character_data_(character_data), world_(100, 50, "The Town of Millhaven") {
 
-    // Wire faction lookups before anything queues actions or runs AI.
+    // Wire faction and item lookups before anything queues actions or runs AI.
+    // The item registry is needed both by spawn_ground_item (called from the
+    // AttackAction death path) and by inventory rendering.
     world_.set_faction_registry(&engine->get_faction_registry());
+    world_.set_item_registry(&engine->get_item_registry());
 
     initialize_map();
     initialize_player_stats();
@@ -48,6 +55,9 @@ void GameplayScene::initialize_player_stats() {
     registry.emplace<engine::FactionComponent>(player_entity, "player");
     // "You" reads naturally in combat log messages.
     registry.emplace<engine::NameComponent>(player_entity, "You");
+
+    // The player carries a 26-slot bag from the start. Empty until pickups.
+    registry.emplace<engine::InventoryComponent>(player_entity);
 }
 
 void GameplayScene::initialize_map() {
@@ -169,6 +179,13 @@ void GameplayScene::spawn_entities() {
                     mob_stats.current_resources[engine::ResourcePool::HEALTH] = mob_template->max_hp;
                 }
                 registry.emplace<engine::StatsComponent>(mob_entity, std::move(mob_stats));
+
+                // Copy the drop table onto the entity so the death handler can
+                // look it up without walking back to the template.
+                if (!mob_template->drops.empty()) {
+                    registry.emplace<engine::DropsComponent>(mob_entity,
+                        engine::DropsComponent{mob_template->drops});
+                }
             }
         }
     }
@@ -221,16 +238,31 @@ void GameplayScene::setup_ui() {
     component_ = CatchEvent(Renderer(split, [this, split, log_panel] {
         auto status_text = log_panel->Focused()
             ? text("TAB: Game | Arrow/J/K: Scroll | PgUp/PgDn/Home/End: Jump | Q: Quit") | dim | center
-            : text("TAB: Log | Arrow/Numpad: Move | 5/.: Wait | Q: Quit") | dim | center;
+            : text("TAB: Log | Arrow/Numpad: Move | g/d/i: Pickup/Drop/Inv | 5/.: Wait | Q: Quit") | dim | center;
+
+        Element body = split->Render() | flex;
+        if (modal_kind_ != engine::ui::InventoryModalKind::None) {
+            // Overlay the modal on top of the world. dbox stacks elements
+            // back-to-front; the modal is the front layer.
+            auto modal = engine::ui::render_inventory_modal(
+                world_, modal_kind_, pickup_choices_);
+            body = dbox({split->Render(), modal}) | flex;
+        }
 
         return vbox({
             text(world_.get_map_name()) | bold | center,
             separator(),
-            split->Render() | flex,
+            body,
             separator(),
             status_text,
         }) | border;
     }), [this, log_panel, world_panel](Event event) {
+        // Modal keys win when a modal is open. They handle Esc + slot letters
+        // and dispatch the corresponding action.
+        if (modal_kind_ != engine::ui::InventoryModalKind::None) {
+            return handle_modal_event(event);
+        }
+
         // Q to quit
         if (event == Event::Character('q') || event == Event::Character('Q')) {
             get_engine()->get_scene_manager().set_scene(std::make_unique<MainMenuScene>(get_engine()));
@@ -247,8 +279,118 @@ void GameplayScene::setup_ui() {
             return true;
         }
 
+        // Inventory actions are routed only when the world panel has focus —
+        // otherwise log-panel scrolling would steal letters.
+        if (world_panel->Focused()) {
+            if (event == Event::Character('i')) {
+                modal_kind_ = engine::ui::InventoryModalKind::Inspect;
+                return true;
+            }
+            if (event == Event::Character('d')) {
+                auto& registry = world_.get_registry();
+                auto* inv = registry.try_get<engine::InventoryComponent>(
+                    world_.get_player_entity());
+                if (!inv || inv->slots.empty()) {
+                    world_.get_game_log().entry()
+                        .text("You have nothing to drop.")
+                        .log();
+                } else {
+                    modal_kind_ = engine::ui::InventoryModalKind::DropChoice;
+                }
+                return true;
+            }
+            if (event == Event::Character('g')) {
+                open_pickup_choice();
+                return true;
+            }
+        }
+
         return false;
     });
+}
+
+void GameplayScene::open_pickup_choice() {
+    // Collect ground items on the player's tile.
+    auto& registry = world_.get_registry();
+    auto player = world_.get_player_entity();
+    const auto* pos = registry.try_get<engine::Position>(player);
+    if (!pos) return;
+
+    std::vector<entt::entity> items;
+    auto view = registry.view<engine::Position, engine::ItemComponent>();
+    for (auto e : view) {
+        const auto& p = view.get<engine::Position>(e);
+        if (p.x == pos->x && p.y == pos->y) {
+            items.push_back(e);
+        }
+    }
+
+    if (items.empty()) {
+        world_.get_game_log().entry().text("There is nothing here to pick up.").log();
+        return;
+    }
+    if (items.size() == 1) {
+        world_.apply_player_action(
+            std::make_unique<engine::PickupAction>(player, items.front()));
+        return;
+    }
+    pickup_choices_ = std::move(items);
+    modal_kind_ = engine::ui::InventoryModalKind::PickupChoice;
+}
+
+bool GameplayScene::handle_modal_event(const ftxui::Event& event) {
+    if (event == Event::Escape) {
+        modal_kind_ = engine::ui::InventoryModalKind::None;
+        pickup_choices_.clear();
+        return true;
+    }
+
+    // For the inspect modal, only Esc closes; any other key passes through
+    // (but we still swallow it to avoid surprising movement under the modal).
+    if (modal_kind_ == engine::ui::InventoryModalKind::Inspect) {
+        return true;
+    }
+
+    if (!event.is_character()) return true;
+    std::string ch = event.character();
+    if (ch.size() != 1) return true;
+    char letter = ch[0];
+    if (letter < 'a' || letter > 'z') return true;
+
+    auto player = world_.get_player_entity();
+
+    if (modal_kind_ == engine::ui::InventoryModalKind::DropChoice) {
+        // Verify the slot exists before dispatching, so an unknown letter is
+        // a no-op rather than a wasted turn.
+        auto& registry = world_.get_registry();
+        const auto* inv = registry.try_get<engine::InventoryComponent>(player);
+        if (!inv) {
+            modal_kind_ = engine::ui::InventoryModalKind::None;
+            return true;
+        }
+        auto it = std::find_if(inv->slots.begin(), inv->slots.end(),
+            [letter](const engine::InventorySlot& s) { return s.letter == letter; });
+        if (it == inv->slots.end()) {
+            return true;  // ignore stray letters
+        }
+        modal_kind_ = engine::ui::InventoryModalKind::None;
+        world_.apply_player_action(std::make_unique<engine::DropAction>(player, letter));
+        return true;
+    }
+
+    if (modal_kind_ == engine::ui::InventoryModalKind::PickupChoice) {
+        std::size_t idx = static_cast<std::size_t>(letter - 'a');
+        if (idx >= pickup_choices_.size()) {
+            return true;
+        }
+        entt::entity chosen = pickup_choices_[idx];
+        modal_kind_ = engine::ui::InventoryModalKind::None;
+        pickup_choices_.clear();
+        world_.apply_player_action(std::make_unique<engine::PickupAction>(player, chosen));
+        return true;
+    }
+
+    return true;
 }
 
 void GameplayScene::update() {

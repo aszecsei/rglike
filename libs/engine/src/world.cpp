@@ -221,6 +221,29 @@ void World::clear_registry() {
     camera_entity_ = registry_.create();
 }
 
+entt::entity World::spawn_ground_item(const std::string& item_id, int x, int y, int count) {
+    if (!item_registry_) return entt::null;
+    auto tmpl = item_registry_->get(item_id);
+    if (!tmpl) return entt::null;
+    if (count < 1) count = 1;
+
+    auto e = registry_.create();
+    registry_.emplace<Position>(e, x, y);
+    registry_.emplace<Renderable>(e,
+                                  tmpl->glyph,
+                                  tmpl->fg_color,
+                                  tmpl->bg_color,
+                                  tmpl->bold,
+                                  tmpl->render_order);
+    registry_.emplace<NameComponent>(e, tmpl->name);
+    ItemComponent ic;
+    ic.item_id = item_id;
+    ic.is_stackable = tmpl->is_stackable;
+    ic.count = tmpl->is_stackable ? count : 1;
+    registry_.emplace<ItemComponent>(e, std::move(ic));
+    return e;
+}
+
 void World::update_systems() {
     // Update field-of-view for entities with vision
     systems::update_viewshed(registry_, map_entity_);

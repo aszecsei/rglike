@@ -48,6 +48,10 @@ Engine.CreateMob({
         composure = 6,
         min_level = 1,
         max_level = 3
+    },
+    drops = {
+        { id = "gold", chance = 0.8, min_count = 2, max_count = 6 },
+        { id = "healing_potion", chance = 0.15 },
     }
 })
 
@@ -60,7 +64,10 @@ Engine.CreateMob({
     max_hp = 3,
     defense = 0,
     power = 1,
-    faction_id = "wildlife"
+    faction_id = "wildlife",
+    drops = {
+        { id = "bone", chance = 0.5 },
+    }
 })
 
 -- Hostile pest that infests town buildings. Cheap to fight one-on-one but
@@ -74,7 +81,11 @@ Engine.CreateMob({
     max_hp = 4,
     defense = 0,
     power = 3,
-    faction_id = "monsters"
+    faction_id = "monsters",
+    drops = {
+        { id = "bone", chance = 0.4 },
+        { id = "gold", chance = 0.2, min_count = 1, max_count = 3 },
+    }
 })
 
 -- Medium enemies
@@ -88,7 +99,12 @@ Engine.CreateMob({
     max_hp = 10,
     defense = 1,
     power = 4,
-    faction_id = "monsters"
+    faction_id = "monsters",
+    drops = {
+        { id = "gold", chance = 0.9, min_count = 5, max_count = 15 },
+        { id = "healing_potion", chance = 0.25 },
+        { id = "scroll", chance = 0.1 },
+    }
 })
 
 Engine.CreateMob({
@@ -100,7 +116,11 @@ Engine.CreateMob({
     max_hp = 8,
     defense = 2,
     power = 3,
-    faction_id = "undead"
+    faction_id = "undead",
+    drops = {
+        { id = "bone", chance = 1.0, min_count = 1, max_count = 3 },
+        { id = "scroll", chance = 0.15 },
+    }
 })
 
 -- Strong enemies
