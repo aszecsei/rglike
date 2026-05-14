@@ -4,6 +4,7 @@
 #include "terrain.h"
 #include "mob.h"
 #include "prop.h"
+#include "item.h"
 #include "faction.h"
 #include "growth_pattern.h"
 #include "character_data.h"
@@ -57,6 +58,7 @@ public:
     TerrainRegistry& get_terrain_registry() { return terrain_registry_; }
     MobRegistry& get_mob_registry() { return mob_registry_; }
     PropRegistry& get_prop_registry() { return prop_registry_; }
+    ItemRegistry& get_item_registry() { return item_registry_; }
     FactionRegistry& get_faction_registry() { return faction_registry_; }
     GrowthPatternRegistry& get_growth_pattern_registry() { return growth_pattern_registry_; }
     RaceRegistry& get_race_registry() { return race_registry_; }
@@ -72,6 +74,7 @@ private:
     TerrainRegistry terrain_registry_;
     MobRegistry mob_registry_;
     PropRegistry prop_registry_;
+    ItemRegistry item_registry_;
     FactionRegistry faction_registry_;
     GrowthPatternRegistry growth_pattern_registry_;
     RaceRegistry race_registry_;

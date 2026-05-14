@@ -5,6 +5,7 @@
 #include "components.h"
 #include "action.h"
 #include "faction.h"
+#include "item.h"
 #include "game_log.h"
 #include "well512.h"
 #include <optional>
@@ -133,6 +134,18 @@ public:
     void set_faction_registry(const FactionRegistry* registry) { faction_registry_ = registry; }
     [[nodiscard]] const FactionRegistry* get_faction_registry() const { return faction_registry_; }
 
+    // Item registry — set by the scene; used by AttackAction to spawn dropped
+    // items on mob death and by DropAction to look up template data when an
+    // inventory stack is split back onto the ground. World does not own it.
+    void set_item_registry(const ItemRegistry* registry) { item_registry_ = registry; }
+    [[nodiscard]] const ItemRegistry* get_item_registry() const { return item_registry_; }
+
+    // Spawn a ground item entity at (x, y) using the given template id.
+    // Returns entt::null if the item registry is missing or the id is unknown.
+    // `count` is meaningful for stackable items only; non-stackable items
+    // always spawn one entity per call (caller should loop if needed).
+    entt::entity spawn_ground_item(const std::string& item_id, int x, int y, int count = 1);
+
     // RNG owned by the world so AI and combat are deterministic per seed.
     WELL512& get_rng() { return rng_; }
 
@@ -155,6 +168,7 @@ private:
     std::queue<std::unique_ptr<Action>> action_queue_;
     GameLog game_log_;
     const FactionRegistry* faction_registry_ = nullptr;
+    const ItemRegistry* item_registry_ = nullptr;
     WELL512 rng_;
     bool player_dead_ = false;
     std::optional<std::string> player_death_cause_;

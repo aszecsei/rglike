@@ -120,4 +120,35 @@ private:
     entt::entity target_;
 };
 
+// Action: Pick up a specific item entity. The actor must share its tile with
+// the target item. If the item is stackable and the actor already has a stack
+// of the same template, the stack's count grows and the ground item is
+// destroyed; otherwise the action claims a new inventory slot. Pickup fails
+// (consuming the turn) if the bag is full.
+class PickupAction : public Action {
+public:
+    PickupAction(entt::entity actor, entt::entity item)
+        : Action(actor), item_(item) {}
+
+    ActionResult execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) override;
+    [[nodiscard]] std::string description() const override;
+
+private:
+    entt::entity item_;
+};
+
+// Action: Drop the slot identified by `letter` from the actor's inventory. For
+// stackable slots the entire stack is dropped as a single ground entity; for
+// unique slots the held entity is placed at the actor's position.
+class DropAction : public Action {
+public:
+    DropAction(entt::entity actor, char letter) : Action(actor), letter_(letter) {}
+
+    ActionResult execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) override;
+    [[nodiscard]] std::string description() const override;
+
+private:
+    char letter_;
+};
+
 } // namespace engine

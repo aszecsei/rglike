@@ -3,8 +3,11 @@
 #include <engine/scene.h>
 #include <engine/world.h>
 #include <engine/character_data.h>
+#include <engine/ui/inventory_panel.h>
+#include <entt/entt.hpp>
 #include <ftxui/component/component.hpp>
 #include <memory>
+#include <vector>
 
 class GameplayScene : public engine::Scene {
 public:
@@ -25,9 +28,18 @@ private:
     void setup_ui();
     void add_initial_log_messages();
 
+    // Inventory interaction. The modal short-circuits world-panel key handling
+    // while open; the scene's CatchEvent layer dispatches the keystroke and
+    // closes the modal on completion.
+    void open_pickup_choice();
+    bool handle_modal_event(const ftxui::Event& event);
+
     engine::CharacterCreationData character_data_;
     engine::World world_;
     ftxui::Component component_;
     int log_width_ = 30;
     int stats_width_ = 28;
+
+    engine::ui::InventoryModalKind modal_kind_ = engine::ui::InventoryModalKind::None;
+    std::vector<entt::entity> pickup_choices_;
 };

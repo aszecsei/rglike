@@ -3,6 +3,8 @@
 #include <engine/terrain.h>
 #include <engine/mob.h>
 #include <engine/prop.h>
+#include <engine/item.h>
+#include <engine/components.h>
 #include <engine/faction.h>
 #include <engine/character_data.h>
 #include <engine/constants.h>
@@ -168,6 +170,37 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             // Optional faction_id (defaults to "neutral")
             std::string faction_id = mob_table.get_or<std::string>("faction_id", "neutral");
 
+            // Optional drops table. Each entry: { id, chance?, min_count?, max_count? }.
+            // Item ids are not validated here because Lua load order is filesystem
+            // iteration order; items.lua may not have been processed yet. The
+            // death handler will silently skip unknown ids and log a warning at
+            // spawn time.
+            std::vector<DropEntry> drops;
+            sol::optional<sol::table> drops_opt = mob_table["drops"];
+            if (drops_opt) {
+                sol::table drops_table = *drops_opt;
+                for (const auto& kv : drops_table) {
+                    sol::object value = kv.second;
+                    if (!value.is<sol::table>()) {
+                        logger->warn("Mob '{}': drops entry is not a table, skipping", id);
+                        continue;
+                    }
+                    sol::table entry = value.as<sol::table>();
+                    DropEntry de;
+                    sol::optional<std::string> entry_id = entry["id"];
+                    if (!entry_id) {
+                        logger->warn("Mob '{}': drops entry missing 'id', skipping", id);
+                        continue;
+                    }
+                    de.item_id = *entry_id;
+                    de.chance = entry.get_or("chance", 1.0f);
+                    de.min_count = entry.get_or("min_count", 1);
+                    de.max_count = entry.get_or("max_count", de.min_count);
+                    if (de.max_count < de.min_count) de.max_count = de.min_count;
+                    drops.push_back(std::move(de));
+                }
+            }
+
             Mob mob;
             mob.name = name;
             mob.glyph = glyph;
@@ -179,6 +212,7 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             mob.blocks_vision = blocks_vision;
             mob.vision_range = vision_range;
             mob.faction_id = faction_id;
+            mob.drops = std::move(drops);
 
             // Check for stats table (new system) or legacy hp/defense/power
             sol::optional<sol::table> stats_opt = mob_table["stats"];
@@ -278,6 +312,48 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
                  "bg_color (optional RGB array), bold (optional), render_order (optional), "
                  "blocks_movement (optional), blocks_vision (optional), "
                  "open_glyph (optional string — presence flags it as a door)"}
+            }
+        }
+    );
+
+    // Bind CreateItem. Items follow the Mob/Prop registry pattern: Lua loads
+    // them as templates at startup, and spawning produces an entity with
+    // Position/Renderable/NameComponent/ItemComponent. Stackable items merge
+    // in inventory by template id.
+    register_table_function(engine_table, "Engine", "CreateItem",
+        [engine, logger](sol::table item_table) {
+            std::string id = item_table["id"];
+            std::string name = item_table.get_or<std::string>("name", id);
+            std::string glyph = item_table["glyph"];
+
+            ftxui::Color fg_color = parse_rgb_color(item_table["fg_color"]);
+            ftxui::Color bg_color = ftxui::Color::Default;
+            sol::optional<sol::table> bg_color_opt = item_table["bg_color"];
+            if (bg_color_opt) {
+                bg_color = parse_rgb_color(*bg_color_opt);
+            }
+
+            Item item;
+            item.id = id;
+            item.name = name;
+            item.glyph = glyph;
+            item.fg_color = fg_color;
+            item.bg_color = bg_color;
+            item.bold = item_table.get_or("bold", false);
+            item.render_order = item_table.get_or("render_order", constants::RENDER_ORDER_ITEMS);
+            item.is_stackable = item_table.get_or("is_stackable", false);
+
+            engine->get_item_registry().register_item(id, item);
+            logger->debug("Registered item '{}' ({}) glyph='{}' stackable={}",
+                         id, name, glyph, item.is_stackable);
+        },
+        LuaFunctionDoc{
+            .description = "Create an item type",
+            .params = {
+                {"item_table", "table",
+                 "Fields: id, name (optional), glyph, fg_color (RGB array), "
+                 "bg_color (optional RGB array), bold (optional), "
+                 "render_order (optional), is_stackable (optional)"}
             }
         }
     );

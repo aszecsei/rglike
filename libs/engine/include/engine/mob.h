@@ -1,11 +1,13 @@
 #pragma once
 
+#include "components.h"  // DropEntry
 #include "constants.h"
 #include "registry.h"
 #include "stats.h"
 #include <ftxui/screen/color.hpp>
 #include <string>
 #include <optional>
+#include <vector>
 
 namespace engine {
 
@@ -35,6 +37,9 @@ struct Mob {
     int power = 1;                              // Attack power / damage
 
     std::string faction_id = "neutral";         // Faction this mob belongs to
+
+    // Loot table. Each entry rolls independently when the mob dies.
+    std::vector<DropEntry> drops;
 
     Mob() = default;
     Mob(std::string name, std::string glyph, ftxui::Color fg, ftxui::Color bg,
