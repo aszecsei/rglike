@@ -6,6 +6,7 @@ add_library(engine STATIC
     src/lua_bindings.cpp
     src/ui/log_panel.cpp
     src/ui/world_panel.cpp
+    src/ui/stats_panel.cpp
     src/action.cpp
         src/utils.hpp
 )

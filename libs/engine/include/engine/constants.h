@@ -10,6 +10,10 @@ constexpr int MOVE_COST_DIAGONAL = 141;
 constexpr int ACTION_COST_WAIT = 100;
 constexpr int ACTION_COST_OPEN_DOOR = 100;
 constexpr int ACTION_COST_CLOSE_DOOR = 100;
+constexpr int ACTION_COST_ATTACK = 100;
+
+// XP reward for killing any mob. Placeholder until per-mob XP is data-driven.
+constexpr int XP_REWARD_PER_KILL = 25;
 
 // Vision & Camera
 constexpr int DEFAULT_VISION_RANGE = 8;

@@ -104,4 +104,20 @@ public:
     [[nodiscard]] std::string description() const override;
 };
 
+// Action: Melee-attack a specific target entity. Damage is derived from the
+// attacker's STR and the target's CON via the StatsComponent on each side.
+// Both entities must have StatsComponent; AttackAction is queued only from
+// places that have already verified this (e.g., MoveAction's bump-attack).
+class AttackAction : public Action {
+public:
+    AttackAction(entt::entity attacker, entt::entity target)
+        : Action(attacker), target_(target) {}
+
+    ActionResult execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) override;
+    [[nodiscard]] std::string description() const override;
+
+private:
+    entt::entity target_;
+};
+
 } // namespace engine

@@ -10,13 +10,19 @@
 --   target_faction_id: string - the faction to respond to (or 'DEFAULT'/'SELF')
 --   response: string - the response type: "IGNORE", "ATTACK", or "FLEE"
 
--- Player faction (using inline responses table)
+-- Player faction. DEFAULT is ATTACK so bumping into anything not explicitly
+-- listed as friendly triggers a melee strike. Villagers, wildlife, and the
+-- catch-all "neutral" faction are protected so you don't accidentally murder
+-- the merchant when walking around town.
 local player = Engine.CreateFaction({
     id = "player",
     name = "Player",
     responses = {
         SELF = "IGNORE",
-        DEFAULT = "IGNORE"
+        villagers = "IGNORE",
+        wildlife = "IGNORE",
+        neutral = "IGNORE",
+        DEFAULT = "ATTACK"
     }
 })
 

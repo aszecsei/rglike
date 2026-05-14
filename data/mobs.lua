@@ -63,6 +63,20 @@ Engine.CreateMob({
     faction_id = "wildlife"
 })
 
+-- Hostile pest that infests town buildings. Cheap to fight one-on-one but
+-- dangerous in numbers — TownBuilder seeds a few per house.
+Engine.CreateMob({
+    id = "house_rat",
+    name = "Rat",
+    glyph = "r",
+    fg_color = {120, 60, 30},
+    vision_range = 5,
+    max_hp = 4,
+    defense = 0,
+    power = 3,
+    faction_id = "monsters"
+})
+
 -- Medium enemies
 Engine.CreateMob({
     id = "orc",

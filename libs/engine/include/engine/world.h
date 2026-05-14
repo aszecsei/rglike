@@ -4,6 +4,9 @@
 #include "terrain.h"
 #include "components.h"
 #include "action.h"
+#include "faction.h"
+#include "game_log.h"
+#include "well512.h"
 #include <optional>
 #include <string>
 #include <vector>
@@ -47,7 +50,7 @@ namespace engine {
  */
 class World {
 public:
-    World(int width, int height, std::string map_name);
+    World(int width, int height, std::string map_name, uint32_t rng_seed = 0xCAFEBABEu);
     ~World() = default;
 
     // Get world dimensions (from map entity)
@@ -70,8 +73,10 @@ public:
     // Set player position (convenience method)
     void set_player_position(int x, int y);
 
-    // Move player by offset (checks passability)
-    bool move_player(int dx, int dy);
+    // Apply a player-issued action and then advance the simulation until the
+    // player is ready to act again (or has died). This is the single entry
+    // point for player input from the UI layer.
+    void apply_player_action(std::unique_ptr<Action> action);
 
     // Get terrain at position (returns nullopt if out of bounds)
     [[nodiscard]] std::optional<Terrain> get_terrain(int x, int y) const;
@@ -117,12 +122,42 @@ public:
     void clear_action_queue();
     [[nodiscard]] bool has_queued_actions() const;
 
+    // Game log — combat messages, level-ups, etc. are written here by actions
+    // and read by the log UI panel. Owned by World so engine code can log
+    // without UI plumbing.
+    GameLog& get_game_log() { return game_log_; }
+    [[nodiscard]] const GameLog& get_game_log() const { return game_log_; }
+
+    // Faction registry — set by the scene; used by combat/AI to resolve
+    // relationships between entities. World does not own it.
+    void set_faction_registry(const FactionRegistry* registry) { faction_registry_ = registry; }
+    [[nodiscard]] const FactionRegistry* get_faction_registry() const { return faction_registry_; }
+
+    // RNG owned by the world so AI and combat are deterministic per seed.
+    WELL512& get_rng() { return rng_; }
+
+    // Player death state. Set by AttackAction when the player's HP hits zero.
+    // The scene polls this each frame and transitions to the game-over scene.
+    [[nodiscard]] bool is_player_dead() const { return player_dead_; }
+    [[nodiscard]] const std::optional<std::string>& get_player_death_cause() const {
+        return player_death_cause_;
+    }
+    void set_player_dead(std::string cause) {
+        player_dead_ = true;
+        player_death_cause_ = std::move(cause);
+    }
+
 private:
     entt::registry registry_;
     entt::entity map_entity_;
     entt::entity player_entity_;
     entt::entity camera_entity_;
     std::queue<std::unique_ptr<Action>> action_queue_;
+    GameLog game_log_;
+    const FactionRegistry* faction_registry_ = nullptr;
+    WELL512 rng_;
+    bool player_dead_ = false;
+    std::optional<std::string> player_death_cause_;
 };
 
 } // namespace engine

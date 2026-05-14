@@ -1,15 +1,18 @@
 #include <engine/world.h>
 #include <engine/systems.h>
+#include <engine/ai.h>
 #include <engine/action.h>
 #include <engine/constants.h>
 
 #include <utility>
 #include <algorithm>
 #include <cassert>
+#include <vector>
 
 namespace engine {
 
-World::World(int width, int height, std::string map_name) {
+World::World(int width, int height, std::string map_name, uint32_t rng_seed)
+    : rng_(rng_seed) {
     // Create map entity with MapComponent
     map_entity_ = registry_.create();
     auto& map_component = registry_.emplace<MapComponent>(map_entity_, width, height, 1, std::move(map_name));
@@ -66,20 +69,53 @@ void World::set_player_position(int x, int y) {
     pos->y = y;
 }
 
-bool World::move_player(int dx, int dy) {
-    // Queue a move action and process the queue until turn is consumed
-    queue_action(std::make_unique<MoveAction>(player_entity_, dx, dy));
+void World::apply_player_action(std::unique_ptr<Action> action) {
+    if (player_dead_) return;
 
-    // Process all queued actions until the turn is consumed
+    queue_action(std::move(action));
+
+    // Drain the player's action and any alternatives it queues (bump-door,
+    // bump-attack).
     while (has_queued_actions()) {
-        if (process_next_action()) {
-            // Turn was consumed
-            return true;
-        }
+        process_next_action();
     }
 
-    // No action consumed the turn
-    return false;
+    // Now run the AI tick loop. Each iteration:
+    //   - Snapshot non-player actors with cooldown 0, then let each one act.
+    //     We snapshot first because combat may destroy entities and the
+    //     iterator can't survive that.
+    //   - If the player became ready, break.
+    //   - If nothing acted this iteration, advance time so the next ready
+    //     actor surfaces. The safety net break protects against an empty
+    //     world (no cooldowns at all).
+    while (!player_dead_) {
+        std::vector<entt::entity> ready;
+        auto view = registry_.view<ActionCooldown>(entt::exclude<Player>);
+        for (auto e : view) {
+            if (view.get<ActionCooldown>(e).cooldown == 0) {
+                ready.push_back(e);
+            }
+        }
+
+        bool any_acted = false;
+        for (auto e : ready) {
+            if (!registry_.valid(e)) continue;  // Destroyed earlier this round.
+            systems::ai_take_turn(*this, e, rng_);
+            while (has_queued_actions()) {
+                process_next_action();
+            }
+            any_acted = true;
+            if (player_dead_) break;
+        }
+
+        if (auto* pc = registry_.try_get<ActionCooldown>(player_entity_); pc && pc->cooldown == 0) {
+            break;
+        }
+
+        if (!any_acted) {
+            if (!systems::advance_time(registry_)) break;
+        }
+    }
 }
 
 std::optional<Terrain> World::get_terrain(int x, int y) const {

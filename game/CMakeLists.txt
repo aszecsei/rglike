@@ -3,6 +3,7 @@ add_executable(rglike
     main_menu_scene.cpp
     gameplay_scene.cpp
     character_builder_scene.cpp
+    game_over_scene.cpp
 )
 
 # Link engine library

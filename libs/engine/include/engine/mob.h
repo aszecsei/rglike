@@ -1,5 +1,6 @@
 #pragma once
 
+#include "constants.h"
 #include "registry.h"
 #include "stats.h"
 #include <ftxui/screen/color.hpp>
@@ -15,7 +16,7 @@ struct Mob {
     ftxui::Color fg_color = ftxui::Color::Default;  // Foreground color
     ftxui::Color bg_color = ftxui::Color::Default;  // Background color
     bool bold = false;                          // Bold text rendering
-    int render_order = 50;                      // Render priority (higher = on top)
+    int render_order = constants::RENDER_ORDER_MOBS;  // Render priority (higher = on top)
 
     bool blocks_movement = true;                // Does this mob block the tile it stands on?
     bool blocks_vision = false;                 // Does this mob block line of sight?
