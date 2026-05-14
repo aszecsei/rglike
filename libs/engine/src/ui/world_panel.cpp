@@ -4,9 +4,11 @@
 
 #include <engine/ui/world_panel.h>
 #include <engine/components.h>
+#include <engine/action.h>
 #include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <algorithm>
+#include <memory>
 
 namespace engine::ui {
     using namespace ftxui;
@@ -101,14 +103,20 @@ namespace engine::ui {
                                 cell |= ftxui::bold;
                             }
                         } else {
-                            // Render terrain
+                            // Render terrain. Background defers to Map::get_background_color
+                            // so bloodstains (set by AttackAction on kill) override the
+                            // terrain bg with red.
                             if (auto terrain = world_.get_terrain(world_x, world_y); terrain.has_value()) {
                                 cell = text(terrain->glyph);
                                 if (terrain->fg_color != Color::Default) {
                                     cell |= color(terrain->fg_color);
                                 }
-                                if (terrain->bg_color != Color::Default) {
-                                    cell |= bgcolor(terrain->bg_color);
+                                Color bg = terrain->bg_color;
+                                if (const auto* map_comp = world_.get_map_component()) {
+                                    bg = map_comp->map.get_background_color(world_x, world_y);
+                                }
+                                if (bg != Color::Default) {
+                                    cell |= bgcolor(bg);
                                 }
                             } else {
                                 cell = text(" ");
@@ -143,6 +151,7 @@ namespace engine::ui {
 
             int dx = 0, dy = 0;
             bool moved = false;
+            bool wait = false;
 
             // Arrow keys
             if (event == Event::ArrowUp) {
@@ -171,12 +180,18 @@ namespace engine::ui {
                 dx = -1; dy = 1; moved = true;
             } else if (event == Event::Character('3')) {  // Down-Right
                 dx = 1; dy = 1; moved = true;
-            } else if (event == Event::Character('5')) {  // Wait/Stay
-                dx = 0; dy = 0; moved = true;
+            } else if (event == Event::Character('5') || event == Event::Character('.')) {
+                wait = true;
             }
 
             if (moved) {
-                world_.move_player(dx, dy);
+                world_.apply_player_action(
+                    std::make_unique<MoveAction>(world_.get_player_entity(), dx, dy));
+                return true;
+            }
+            if (wait) {
+                world_.apply_player_action(
+                    std::make_unique<WaitAction>(world_.get_player_entity()));
                 return true;
             }
 

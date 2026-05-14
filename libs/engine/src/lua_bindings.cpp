@@ -2,8 +2,10 @@
 #include <engine/engine.h>
 #include <engine/terrain.h>
 #include <engine/mob.h>
+#include <engine/prop.h>
 #include <engine/faction.h>
 #include <engine/character_data.h>
+#include <engine/constants.h>
 #include <engine/growth_pattern.h>
 #include <fstream>
 #include <vector>
@@ -151,8 +153,9 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             // Optional bold (defaults to false)
             bool bold = mob_table.get_or("bold", false);
 
-            // Optional render_order (defaults to 50)
-            int render_order = mob_table.get_or("render_order", 50);
+            // Optional render_order (defaults to RENDER_ORDER_MOBS so mobs
+            // draw on top of doors/items but below the player).
+            int render_order = mob_table.get_or("render_order", constants::RENDER_ORDER_MOBS);
 
             // Optional blocks_movement (defaults to true)
             bool blocks_movement = mob_table.get_or("blocks_movement", true);
@@ -226,6 +229,55 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             .description = "Create a mob type",
             .params = {
                 {"mob_table", "table", "Table with fields: id, name, glyph, fg_color (RGB array), bg_color (optional RGB array), bold (optional), render_order (optional), blocks_movement (optional), blocks_vision (optional), vision_range, max_hp, defense, power, faction_id (optional)"}
+            }
+        }
+    );
+
+    // Bind CreateProp function. Props are decorative or interactive scenery
+    // (doors, candles, tables, chairs, ...). If open_glyph is provided the
+    // prop is treated as a door: spawning attaches a Door component and
+    // opening swaps the rendered glyph.
+    register_table_function(engine_table, "Engine", "CreateProp",
+        [engine, logger](sol::table prop_table) {
+            std::string id = prop_table["id"];
+            std::string name = prop_table.get_or<std::string>("name", id);
+            std::string glyph = prop_table["glyph"];
+
+            ftxui::Color fg_color = parse_rgb_color(prop_table["fg_color"]);
+            ftxui::Color bg_color = ftxui::Color::Default;
+            sol::optional<sol::table> bg_color_opt = prop_table["bg_color"];
+            if (bg_color_opt) {
+                bg_color = parse_rgb_color(*bg_color_opt);
+            }
+
+            Prop prop;
+            prop.id = id;
+            prop.name = name;
+            prop.glyph = glyph;
+            prop.fg_color = fg_color;
+            prop.bg_color = bg_color;
+            prop.bold = prop_table.get_or("bold", false);
+            prop.render_order = prop_table.get_or("render_order", constants::RENDER_ORDER_DOORS);
+            prop.blocks_movement = prop_table.get_or("blocks_movement", false);
+            prop.blocks_vision = prop_table.get_or("blocks_vision", false);
+
+            sol::optional<std::string> open_glyph_opt = prop_table["open_glyph"];
+            if (open_glyph_opt) {
+                prop.open_glyph = *open_glyph_opt;
+            }
+
+            engine->get_prop_registry().register_item(id, prop);
+            logger->debug("Registered prop '{}' ({}) glyph='{}' openable={}",
+                         id, name, glyph, prop.open_glyph.has_value());
+        },
+        LuaFunctionDoc{
+            .description = "Create a prop (scenery or interactive object)",
+            .params = {
+                {"prop_table", "table",
+                 "Fields: id, name (optional), glyph, fg_color (RGB array), "
+                 "bg_color (optional RGB array), bold (optional), render_order (optional), "
+                 "blocks_movement (optional), blocks_vision (optional), "
+                 "open_glyph (optional string — presence flags it as a door)"}
             }
         }
     );

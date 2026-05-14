@@ -2,6 +2,10 @@
 #include <engine/world.h>
 #include <engine/components.h>
 #include <engine/constants.h>
+#include <engine/faction.h>
+#include <engine/stats.h>
+#include <ftxui/screen/color.hpp>
+#include <algorithm>
 #include <sstream>
 
 namespace engine {
@@ -38,6 +42,30 @@ ActionResult MoveAction::execute(World& world, std::queue<std::unique_ptr<Action
     // Check if the terrain is passable
     if (!terrain->passable) {
         return {ActionResult::Status::Failure, 0};
+    }
+
+    // Bump-attack: if a combatant occupies the target tile and the actor's
+    // faction wants to attack them, swap this move for an AttackAction. Mirrors
+    // the door-bump pattern above.
+    const auto* faction_registry = world.get_faction_registry();
+    const auto* actor_faction_comp = registry.try_get<FactionComponent>(actor_);
+    if (faction_registry && actor_faction_comp) {
+        auto combatant_view = registry.view<Position, StatsComponent, FactionComponent>();
+        for (auto target_entity : combatant_view) {
+            if (target_entity == actor_) continue;
+            const auto& target_pos = combatant_view.get<Position>(target_entity);
+            if (target_pos.x != new_x || target_pos.y != new_y) continue;
+
+            const auto& target_faction_comp = combatant_view.get<FactionComponent>(target_entity);
+            auto actor_faction = faction_registry->get(actor_faction_comp->faction_id);
+            if (!actor_faction) break;
+
+            if (actor_faction->get_response_to(target_faction_comp.faction_id) == FactionResponse::ATTACK) {
+                action_queue.push(std::make_unique<AttackAction>(actor_, target_entity));
+                return {ActionResult::Status::Alternative, 0};
+            }
+            break;  // Only one entity can occupy a tile in practice.
+        }
     }
 
     // Check for entities that block movement
@@ -163,6 +191,108 @@ ActionResult WaitAction::execute(World& world, std::queue<std::unique_ptr<Action
 
 std::string WaitAction::description() const {
     return "Wait";
+}
+
+// Helper: return the entity's display name, or a generic fallback.
+static std::string display_name(const entt::registry& registry, entt::entity e) {
+    const auto* nc = registry.try_get<NameComponent>(e);
+    return nc ? nc->name : std::string{"something"};
+}
+
+// AttackAction implementation
+ActionResult AttackAction::execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) {
+    auto& registry = world.get_registry();
+
+    if (!registry.valid(actor_) || !registry.valid(target_)) {
+        return {ActionResult::Status::Invalid, 0};
+    }
+
+    auto* attacker_stats = registry.try_get<StatsComponent>(actor_);
+    auto* target_stats = registry.try_get<StatsComponent>(target_);
+    auto* target_pos = registry.try_get<Position>(target_);
+    if (!attacker_stats || !target_stats || !target_pos) {
+        return {ActionResult::Status::Invalid, 0};
+    }
+
+    // Damage formula (MVP): STR-driven, halved by target CON, floor of 1.
+    int attacker_str = attacker_stats->get_stat(CoreStat::STRENGTH);
+    int target_con = target_stats->get_stat(CoreStat::CONSTITUTION);
+    int damage = std::max(1, attacker_str - target_con / 2);
+
+    target_stats->modify_resource(ResourcePool::HEALTH, -damage);
+
+    const bool attacker_is_player = registry.all_of<Player>(actor_);
+    const bool target_is_player = registry.all_of<Player>(target_);
+    const std::string attacker_name = display_name(registry, actor_);
+    const std::string target_name = display_name(registry, target_);
+
+    auto& log = world.get_game_log();
+    if (attacker_is_player) {
+        log.entry()
+           .color(ftxui::Color::Yellow).text("You strike ").bold().text(target_name).reset_style()
+           .color(ftxui::Color::Yellow).text(" for ").bold().text(std::to_string(damage)).reset_style()
+           .color(ftxui::Color::Yellow).text(" damage.")
+           .log();
+    } else if (target_is_player) {
+        log.entry()
+           .color(ftxui::Color::Red).bold().text(attacker_name).reset_style()
+           .color(ftxui::Color::Red).text(" strikes you for ").bold().text(std::to_string(damage)).reset_style()
+           .color(ftxui::Color::Red).text(" damage.")
+           .log();
+    } else {
+        log.entry().dim().text(attacker_name + " strikes " + target_name + ".").log();
+    }
+
+    const int target_hp = target_stats->get_resource(ResourcePool::HEALTH);
+    if (target_hp <= 0) {
+        if (target_is_player) {
+            // Player death is sticky state on World; the scene transitions on
+            // its next update tick. Don't destroy the entity — the game-over
+            // scene needs the final stats snapshot.
+            world.set_player_dead(attacker_name);
+            log.entry().color(ftxui::Color::Red).bold().text(attacker_name + " slays you!").log();
+        } else {
+            // Mob death: bloodstain, destroy entity, award XP.
+            if (auto* map_comp = world.get_map_component()) {
+                int idx = target_pos->y * map_comp->map.width + target_pos->x;
+                map_comp->map.bloodstains.insert(idx);
+            }
+
+            if (attacker_is_player) {
+                log.entry()
+                   .color(ftxui::Color::Green).text("You slay ").bold().text(target_name).reset_style()
+                   .color(ftxui::Color::Green).text("!").log();
+            } else {
+                log.entry().dim().text(attacker_name + " slays " + target_name + ".").log();
+            }
+
+            // XP and pending level-up tag on the attacker.
+            const bool leveled = attacker_stats->add_experience(constants::XP_REWARD_PER_KILL);
+            if (attacker_is_player) {
+                log.entry().color(ftxui::Color::GreenLight)
+                   .text("(+" + std::to_string(constants::XP_REWARD_PER_KILL) + " XP)")
+                   .log();
+            }
+            if (leveled) {
+                // Tag the attacker; the scene applies the growth pattern.
+                if (!registry.all_of<PendingLevelUp>(actor_)) {
+                    registry.emplace<PendingLevelUp>(actor_);
+                } else {
+                    registry.get<PendingLevelUp>(actor_).levels += 1;
+                }
+            }
+
+            registry.destroy(target_);
+        }
+    }
+
+    return {ActionResult::Status::Success, constants::ACTION_COST_ATTACK};
+}
+
+std::string AttackAction::description() const {
+    std::ostringstream oss;
+    oss << "Attack entity " << static_cast<uint32_t>(target_);
+    return oss.str();
 }
 
 } // namespace engine

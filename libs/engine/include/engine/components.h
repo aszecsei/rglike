@@ -18,6 +18,15 @@ enum class FactionResponse {
 // Tag component to mark the player entity
 struct Player {};
 
+// Display name for log messages. The player gets "You"; mobs get their
+// template name (e.g., "Goblin"). Optional — actions fall back to a generic
+// "something" if missing.
+struct NameComponent {
+    std::string name;
+    NameComponent() = default;
+    explicit NameComponent(std::string n) : name(std::move(n)) {}
+};
+
 // Position component for entities
 struct Position {
     int x;
@@ -70,15 +79,17 @@ struct BlocksMovement {};
 // BlocksVision component - entities with this block line of sight
 struct BlocksVision {};
 
-// Door component - represents a door that can be opened/closed
+// Door component - runtime state for an openable prop. The glyphs come from
+// the Prop template at spawn time; OpenDoorAction/CloseDoorAction flip the
+// Renderable's glyph between closed_glyph and open_glyph.
 struct Door {
     bool is_open = false;
-    std::string open_glyph = "'";
-    std::string closed_glyph = "+";
-    ftxui::Color color;
+    std::string open_glyph;
+    std::string closed_glyph;
 
-    explicit Door(ftxui::Color color = ftxui::Color::RGB(139, 69, 19))
-        : color(color) {}
+    Door() = default;
+    Door(std::string closed, std::string open)
+        : open_glyph(std::move(open)), closed_glyph(std::move(closed)) {}
 };
 
 // ActionCooldown component - time-based action system
@@ -105,6 +116,21 @@ struct StatsComponent : public Stats {
     std::string growth_pattern_id = "";  // Optional: ID of growth pattern for level ups
 
     StatsComponent() = default;
+    StatsComponent(Stats stats, std::string growth_id = "")
+        : Stats(std::move(stats)), growth_pattern_id(std::move(growth_id)) {}
+};
+
+// Tag component: entity has died this frame. Scenes may use this to drive
+// death animations or delayed cleanup; the engine itself destroys mobs
+// immediately on death and only sets a flag on World for the player.
+struct Dead {};
+
+// Tag component: entity crossed an XP threshold and is awaiting growth-pattern
+// application. The scene drains these each frame because applying the growth
+// pattern requires access to the engine's GrowthPatternRegistry, which World
+// is intentionally not coupled to.
+struct PendingLevelUp {
+    int levels = 1;
 };
 
 // Combat stats component - simple combat attributes for entities

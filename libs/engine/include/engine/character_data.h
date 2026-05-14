@@ -44,13 +44,34 @@ struct CharacterCreationData {
     std::string gender = "neutral";  // "male", "female", "neutral", or custom
     std::string race_id = "";
     std::string class_id = "";
-
-    // Generate initial stats based on race and class
-    Stats generate_stats() const {
-        Stats stats;
-        // Stats start at 10 baseline by default
-        return stats;
-    }
 };
+
+// Build the initial Stats for a freshly created character.
+// Starts from baseline 10s, applies race stat_modifiers, then class starting_stats,
+// then refills all resources to the final max so the character begins at full health.
+inline Stats build_initial_stats(const CharacterCreationData& /*data*/,
+                                  const Race* race,
+                                  const CharacterClass* cls) {
+    Stats stats;  // Baseline 10s, resources filled.
+
+    if (race) {
+        for (const auto& [stat, modifier] : race->stat_modifiers) {
+            stats.modify_stat(stat, modifier);
+        }
+    }
+
+    if (cls) {
+        for (const auto& [stat, bonus] : cls->starting_stats) {
+            stats.modify_stat(stat, bonus);
+        }
+    }
+
+    // modify_stat recalculates maxes incrementally but leaves current resources
+    // below the new max when bonuses raise them. Refill so the character starts
+    // at full health/mana/etc.
+    stats.refill_resources();
+
+    return stats;
+}
 
 } // namespace engine

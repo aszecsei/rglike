@@ -181,6 +181,50 @@ private:
         // Replace wall with floor and spawn door entity
         state.set_terrain(door_x, door_y, floor_);
         state.entity_spawns.push_back({Vector2(door_x, door_y), "door", false});
+
+        // Drop some furniture inside the building, then scatter rats. Both
+        // share a tile-picker; the helper retries until it finds an interior
+        // floor tile that isn't the door and isn't already claimed.
+        auto try_place = [&](const char* spawn_id, int max_attempts = 8) {
+            for (int attempt = 0; attempt < max_attempts; ++attempt) {
+                int rx = x + 1 + rng.range(0, std::max(0, w - 3));
+                int ry = y + 1 + rng.range(0, std::max(0, h - 3));
+                if (rx == door_x && ry == door_y) continue;
+
+                auto terrain = state.get(rx, ry);
+                if (!terrain || terrain->glyph != floor_.glyph) continue;
+
+                bool occupied = false;
+                for (const auto& s : state.entity_spawns) {
+                    if (s.position.x == rx && s.position.y == ry) {
+                        occupied = true;
+                        break;
+                    }
+                }
+                if (occupied) continue;
+
+                state.entity_spawns.push_back({Vector2(rx, ry), spawn_id, false});
+                return true;
+            }
+            return false;
+        };
+
+        // Furniture: a handful of tables/chairs/candles/barrels per house, drawn
+        // from a rotating menu so each building has a slightly different feel.
+        static constexpr const char* furniture[] = {
+            "table", "chair", "candle", "candle", "chair", "barrel"
+        };
+        int num_furniture = rng.range(2, 5);
+        for (int i = 0; i < num_furniture; ++i) {
+            const char* prop_id = furniture[rng.range(0, 5)];
+            try_place(prop_id);
+        }
+
+        // Rat infestation.
+        int num_rats = rng.range(1, 3);
+        for (int i = 0; i < num_rats; ++i) {
+            try_place("house_rat");
+        }
     }
 
     // Build a vertical river

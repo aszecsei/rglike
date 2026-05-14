@@ -2,7 +2,6 @@
 
 #include <engine/scene.h>
 #include <engine/world.h>
-#include <engine/game_log.h>
 #include <engine/character_data.h>
 #include <ftxui/component/component.hpp>
 #include <memory>
@@ -21,13 +20,14 @@ public:
 private:
     // Helper methods for initialization
     void initialize_map();
+    void initialize_player_stats();
     void spawn_entities();
     void setup_ui();
     void add_initial_log_messages();
 
     engine::CharacterCreationData character_data_;
     engine::World world_;
-    engine::GameLog game_log_;
     ftxui::Component component_;
     int log_width_ = 30;
+    int stats_width_ = 28;
 };
