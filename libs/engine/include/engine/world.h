@@ -146,6 +146,15 @@ public:
     // always spawn one entity per call (caller should loop if needed).
     entt::entity spawn_ground_item(const std::string& item_id, int x, int y, int count = 1);
 
+    // Give a fresh item to `actor`'s inventory, allocating a new lettered
+    // slot (or merging onto an existing stack for stackable items). Returns
+    // true on success. Used by starting-loadout spawning; PickupAction
+    // remains separate because it operates on an existing ground entity
+    // rather than a template id, and its log messages differ.
+    //   - Fails when the actor has no InventoryComponent, the item id is
+    //     unknown, or the bag is full (and the item cannot merge).
+    bool give_item_to(entt::entity actor, const std::string& item_id, int count = 1);
+
     // RNG owned by the world so AI and combat are deterministic per seed.
     WELL512& get_rng() { return rng_; }
 

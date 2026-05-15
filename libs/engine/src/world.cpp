@@ -244,6 +244,60 @@ entt::entity World::spawn_ground_item(const std::string& item_id, int x, int y, 
     return e;
 }
 
+bool World::give_item_to(entt::entity actor, const std::string& item_id, int count) {
+    if (!item_registry_) return false;
+    auto tmpl = item_registry_->get(item_id);
+    if (!tmpl) return false;
+    if (count < 1) count = 1;
+
+    auto* inv = registry_.try_get<InventoryComponent>(actor);
+    if (!inv) return false;
+
+    // Stackable: merge into an existing same-id slot if one exists.
+    if (tmpl->is_stackable) {
+        for (auto& slot : inv->slots) {
+            if (slot.stack_item_id && *slot.stack_item_id == item_id) {
+                slot.count += count;
+                return true;
+            }
+        }
+    }
+
+    char letter = allocate_inventory_letter(*inv);
+    if (letter == 0) return false;
+
+    InventorySlot new_slot;
+    new_slot.letter = letter;
+    if (tmpl->is_stackable) {
+        new_slot.stack_item_id = item_id;
+        new_slot.count = count;
+    } else {
+        // Non-stackable: spawn a backing entity with no Position so it does
+        // not render on the map. The entity carries the same components an
+        // item picked off the ground would (renderable for inventory glyph,
+        // name for log messages, ItemComponent for template lookups), plus
+        // a Carried tag pointing back to the owner.
+        auto e = registry_.create();
+        registry_.emplace<Renderable>(e,
+                                       tmpl->glyph,
+                                       tmpl->fg_color,
+                                       tmpl->bg_color,
+                                       tmpl->bold,
+                                       tmpl->render_order);
+        registry_.emplace<NameComponent>(e, tmpl->name);
+        ItemComponent ic;
+        ic.item_id = item_id;
+        ic.is_stackable = false;
+        ic.count = 1;
+        registry_.emplace<ItemComponent>(e, std::move(ic));
+        registry_.emplace<Carried>(e, Carried{actor});
+        new_slot.unique_item = e;
+        new_slot.count = 1;
+    }
+    inv->slots.push_back(std::move(new_slot));
+    return true;
+}
+
 void World::update_systems() {
     // Update field-of-view for entities with vision
     systems::update_viewshed(registry_, map_entity_);

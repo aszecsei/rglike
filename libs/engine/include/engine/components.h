@@ -185,6 +185,22 @@ struct InventoryComponent {
     static constexpr std::size_t MAX_SLOTS = 26;
 };
 
+// Find the next unused letter in [a..z] for a new inventory slot. Returns 0
+// when the bag is full. Shared by pickup, unequip eviction, and starting
+// loadout spawning so all paths agree on letter assignment.
+inline char allocate_inventory_letter(const InventoryComponent& inv) {
+    if (inv.slots.size() >= InventoryComponent::MAX_SLOTS) return 0;
+    bool used[26] = {false};
+    for (const auto& slot : inv.slots) {
+        int idx = slot.letter - 'a';
+        if (idx >= 0 && idx < 26) used[idx] = true;
+    }
+    for (int i = 0; i < 26; ++i) {
+        if (!used[i]) return static_cast<char>('a' + i);
+    }
+    return 0;
+}
+
 // One roll for a mob's drop table. Each entry is independent: the entry
 // drops with probability `chance`; when it drops, the count is uniformly
 // chosen from [min_count, max_count]. Non-stackable items ignore the count

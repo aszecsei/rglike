@@ -24,6 +24,7 @@ private:
     // Helper methods for initialization
     void initialize_map();
     void initialize_player_stats();
+    void initialize_starting_loadout();
     void spawn_entities();
     void setup_ui();
     void add_initial_log_messages();
@@ -42,4 +43,10 @@ private:
 
     engine::ui::InventoryModalKind modal_kind_ = engine::ui::InventoryModalKind::None;
     std::vector<entt::entity> pickup_choices_;
+
+    // When EquipChoice selects a ring and both ring slots are full, the
+    // modal pivots to RingSlotChoice and we remember which bag letter the
+    // player chose so the follow-up keystroke can re-queue EquipAction
+    // with the resolved ring slot.
+    char pending_equip_letter_ = 0;
 };

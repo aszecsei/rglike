@@ -1,9 +1,11 @@
 #pragma once
 
+#include "equipment.h"
 #include "registry.h"
 #include "stats.h"
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace engine {
 
@@ -30,6 +32,16 @@ struct CharacterClass {
 
     // Starting stat bonuses (in addition to race)
     std::unordered_map<CoreStat, int> starting_stats;
+
+    // Items the character begins wearing. Keys are physical slots, so
+    // rings explicitly target ring_1 / ring_2. Each value is an Item
+    // template id; missing/unknown ids are logged and skipped at spawn.
+    std::unordered_map<EquipmentSlot, std::string> starting_equipment;
+
+    // Items the character begins with in the bag, in spawn order. Each
+    // entry is an Item template id and produces one slot (or one stack
+    // increment for stackable items).
+    std::vector<std::string> starting_inventory;
 
     CharacterClass() = default;
 };

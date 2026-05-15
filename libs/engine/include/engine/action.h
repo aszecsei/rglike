@@ -1,7 +1,9 @@
 #pragma once
 
+#include "equipment.h"
 #include <entt/entt.hpp>
 #include <memory>
+#include <optional>
 #include <queue>
 
 namespace engine {
@@ -149,6 +151,41 @@ public:
 
 private:
     char letter_;
+};
+
+// Action: Equip the item in inventory slot `letter`. The item template's
+// equip_slot kind determines which physical slot it targets. RING kind
+// auto-fills the first empty ring slot; if both are full, the scene must
+// supply `ring_choice` (collected via a follow-up modal). Two-handed
+// MAIN_HAND weapons evict the OFF_HAND slot (and vice versa) — the
+// evicted item is returned to the bag, failing the whole action if the
+// bag is full so state remains consistent.
+class EquipAction : public Action {
+public:
+    EquipAction(entt::entity actor, char letter,
+                std::optional<EquipmentSlot> ring_choice = std::nullopt)
+        : Action(actor), letter_(letter), ring_choice_(ring_choice) {}
+
+    ActionResult execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) override;
+    [[nodiscard]] std::string description() const override;
+
+private:
+    char letter_;
+    std::optional<EquipmentSlot> ring_choice_;
+};
+
+// Action: Unequip whatever is in `slot` and return it to the bag. Fails
+// (with a log line) when the slot is empty or the bag is full.
+class UnequipAction : public Action {
+public:
+    UnequipAction(entt::entity actor, EquipmentSlot slot)
+        : Action(actor), slot_(slot) {}
+
+    ActionResult execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) override;
+    [[nodiscard]] std::string description() const override;
+
+private:
+    EquipmentSlot slot_;
 };
 
 } // namespace engine
