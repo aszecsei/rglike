@@ -5,11 +5,13 @@
 #include <engine/prop.h>
 #include <engine/item.h>
 #include <engine/components.h>
+#include <engine/equipment.h>
 #include <engine/faction.h>
 #include <engine/character_data.h>
 #include <engine/constants.h>
 #include <engine/growth_pattern.h>
 #include <fstream>
+#include <stdexcept>
 #include <vector>
 
 namespace engine {
@@ -51,6 +53,25 @@ static std::optional<FactionResponse> parse_faction_response(const std::string& 
 // Helper function to parse RGB color from Lua table
 static ftxui::Color parse_rgb_color(sol::table color_table) {
     return ftxui::Color::RGB(color_table[1], color_table[2], color_table[3]);
+}
+
+// Helper: read any subset of the 12 core stats from a sol::table into a map.
+// Keys are the canonical lowercase stat names already used in races/classes.
+// Unrecognized keys are ignored here — callers that want to flag them (e.g.
+// CreateClass for unknown starting_loadout keys) inspect the table directly.
+static void parse_core_stat_map(sol::table table, std::unordered_map<CoreStat, int>& out) {
+    if (auto v = table.get<sol::optional<int>>("strength"))     out[CoreStat::STRENGTH]     = *v;
+    if (auto v = table.get<sol::optional<int>>("dexterity"))    out[CoreStat::DEXTERITY]    = *v;
+    if (auto v = table.get<sol::optional<int>>("constitution")) out[CoreStat::CONSTITUTION] = *v;
+    if (auto v = table.get<sol::optional<int>>("intelligence")) out[CoreStat::INTELLIGENCE] = *v;
+    if (auto v = table.get<sol::optional<int>>("cunning"))      out[CoreStat::CUNNING]      = *v;
+    if (auto v = table.get<sol::optional<int>>("focus"))        out[CoreStat::FOCUS]        = *v;
+    if (auto v = table.get<sol::optional<int>>("faith"))        out[CoreStat::FAITH]        = *v;
+    if (auto v = table.get<sol::optional<int>>("attunement"))   out[CoreStat::ATTUNEMENT]   = *v;
+    if (auto v = table.get<sol::optional<int>>("resilience"))   out[CoreStat::RESILIENCE]   = *v;
+    if (auto v = table.get<sol::optional<int>>("presence"))     out[CoreStat::PRESENCE]     = *v;
+    if (auto v = table.get<sol::optional<int>>("charisma"))     out[CoreStat::CHARISMA]     = *v;
+    if (auto v = table.get<sol::optional<int>>("composure"))    out[CoreStat::COMPOSURE]    = *v;
 }
 
 // Helper to register a function in a table with its documentation
@@ -343,9 +364,52 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             item.render_order = item_table.get_or("render_order", constants::RENDER_ORDER_ITEMS);
             item.is_stackable = item_table.get_or("is_stackable", false);
 
+            // Optional equipment metadata. equip_slot is the gateway: when
+            // absent, the item is a plain bag-only consumable; when present,
+            // damage_bonus / defense_bonus / stat_bonuses become meaningful.
+            sol::optional<std::string> equip_slot_opt = item_table["equip_slot"];
+            if (equip_slot_opt) {
+                auto kind = parse_item_slot_kind(*equip_slot_opt);
+                if (!kind) {
+                    logger->error("CreateItem '{}': unknown equip_slot '{}' "
+                                  "(expected main_hand|off_hand|head|chest|legs|"
+                                  "boots|gloves|amulet|ring)", id, *equip_slot_opt);
+                    throw std::runtime_error("CreateItem: unknown equip_slot");
+                }
+                item.equip_slot = *kind;
+            }
+
+            item.two_handed   = item_table.get_or("two_handed", false);
+            item.damage_bonus = item_table.get_or("damage_bonus", 0);
+            item.defense_bonus = item_table.get_or("defense_bonus", 0);
+
+            sol::optional<sol::table> stat_bonuses_opt = item_table["stat_bonuses"];
+            if (stat_bonuses_opt) {
+                parse_core_stat_map(*stat_bonuses_opt, item.stat_bonuses);
+            }
+
+            // Equippable + stackable is incoherent: equipped items live as
+            // distinct entities so per-instance state (slot binding, future
+            // durability) is tractable. Reject at registration time.
+            if (item.equip_slot && item.is_stackable) {
+                logger->error("CreateItem '{}': equippable items cannot be "
+                              "stackable", id);
+                throw std::runtime_error("CreateItem: equippable item is stackable");
+            }
+            // two_handed only makes sense for the main-hand slot; flag misuse.
+            if (item.two_handed &&
+                (!item.equip_slot || *item.equip_slot != ItemSlotKind::MAIN_HAND)) {
+                logger->error("CreateItem '{}': two_handed=true is only valid "
+                              "when equip_slot='main_hand'", id);
+                throw std::runtime_error("CreateItem: two_handed misuse");
+            }
+
             engine->get_item_registry().register_item(id, item);
-            logger->debug("Registered item '{}' ({}) glyph='{}' stackable={}",
-                         id, name, glyph, item.is_stackable);
+            logger->debug("Registered item '{}' ({}) glyph='{}' stackable={} "
+                         "equip_slot={} two_handed={} dmg={} def={}",
+                         id, name, glyph, item.is_stackable,
+                         item.equip_slot ? std::string(to_string(*item.equip_slot)) : "(none)",
+                         item.two_handed, item.damage_bonus, item.defense_bonus);
         },
         LuaFunctionDoc{
             .description = "Create an item type",
@@ -353,7 +417,11 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
                 {"item_table", "table",
                  "Fields: id, name (optional), glyph, fg_color (RGB array), "
                  "bg_color (optional RGB array), bold (optional), "
-                 "render_order (optional), is_stackable (optional)"}
+                 "render_order (optional), is_stackable (optional), "
+                 "equip_slot (optional: main_hand|off_hand|head|chest|legs|"
+                 "boots|gloves|amulet|ring), two_handed (optional), "
+                 "damage_bonus (optional int), defense_bonus (optional int), "
+                 "stat_bonuses (optional table of core stat → int)"}
             }
         }
     );
@@ -457,28 +525,78 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             // Parse starting stat bonuses if provided
             sol::optional<sol::table> stats_opt = class_table["starting_stats"];
             if (stats_opt) {
-                sol::table stats = *stats_opt;
-                if (auto val = stats.get<sol::optional<int>>("strength")) char_class.starting_stats[CoreStat::STRENGTH] = *val;
-                if (auto val = stats.get<sol::optional<int>>("dexterity")) char_class.starting_stats[CoreStat::DEXTERITY] = *val;
-                if (auto val = stats.get<sol::optional<int>>("constitution")) char_class.starting_stats[CoreStat::CONSTITUTION] = *val;
-                if (auto val = stats.get<sol::optional<int>>("intelligence")) char_class.starting_stats[CoreStat::INTELLIGENCE] = *val;
-                if (auto val = stats.get<sol::optional<int>>("cunning")) char_class.starting_stats[CoreStat::CUNNING] = *val;
-                if (auto val = stats.get<sol::optional<int>>("focus")) char_class.starting_stats[CoreStat::FOCUS] = *val;
-                if (auto val = stats.get<sol::optional<int>>("faith")) char_class.starting_stats[CoreStat::FAITH] = *val;
-                if (auto val = stats.get<sol::optional<int>>("attunement")) char_class.starting_stats[CoreStat::ATTUNEMENT] = *val;
-                if (auto val = stats.get<sol::optional<int>>("resilience")) char_class.starting_stats[CoreStat::RESILIENCE] = *val;
-                if (auto val = stats.get<sol::optional<int>>("presence")) char_class.starting_stats[CoreStat::PRESENCE] = *val;
-                if (auto val = stats.get<sol::optional<int>>("charisma")) char_class.starting_stats[CoreStat::CHARISMA] = *val;
-                if (auto val = stats.get<sol::optional<int>>("composure")) char_class.starting_stats[CoreStat::COMPOSURE] = *val;
+                parse_core_stat_map(*stats_opt, char_class.starting_stats);
+            }
+
+            // Parse starting loadout (worn equipment + bag contents). The
+            // loadout table has slot-name keys (main_hand, off_hand, head,
+            // chest, legs, boots, gloves, amulet, ring_1, ring_2) whose
+            // values are item template ids, plus an optional `inventory`
+            // key whose value is an array of item template ids that spawn
+            // in the bag rather than equipped. Unknown keys are flagged
+            // here so typos in data files surface at load time rather
+            // than as silent missing gear at spawn time.
+            sol::optional<sol::table> loadout_opt = class_table["starting_loadout"];
+            if (loadout_opt) {
+                sol::table loadout = *loadout_opt;
+                for (const auto& pair : loadout) {
+                    if (!pair.first.is<std::string>()) {
+                        logger->error("CreateClass '{}': starting_loadout has "
+                                      "non-string key", id);
+                        throw std::runtime_error("CreateClass: bad loadout key");
+                    }
+                    std::string key = pair.first.as<std::string>();
+                    if (key == "inventory") {
+                        if (!pair.second.is<sol::table>()) {
+                            logger->error("CreateClass '{}': starting_loadout."
+                                          "inventory must be an array of item ids",
+                                          id);
+                            throw std::runtime_error("CreateClass: bad inventory list");
+                        }
+                        sol::table inv = pair.second.as<sol::table>();
+                        for (std::size_t i = 1; i <= inv.size(); ++i) {
+                            sol::optional<std::string> item_id = inv[i];
+                            if (!item_id) {
+                                logger->error("CreateClass '{}': "
+                                              "starting_loadout.inventory[{}] "
+                                              "is not a string", id, i);
+                                throw std::runtime_error("CreateClass: inventory entry not string");
+                            }
+                            char_class.starting_inventory.push_back(*item_id);
+                        }
+                        continue;
+                    }
+                    auto slot = parse_equipment_slot(key);
+                    if (!slot) {
+                        logger->error("CreateClass '{}': starting_loadout has "
+                                      "unknown slot key '{}' (expected main_hand|"
+                                      "off_hand|head|chest|legs|boots|gloves|"
+                                      "amulet|ring_1|ring_2|inventory)", id, key);
+                        throw std::runtime_error("CreateClass: unknown loadout slot");
+                    }
+                    if (!pair.second.is<std::string>()) {
+                        logger->error("CreateClass '{}': starting_loadout.{} "
+                                      "must be a string item id", id, key);
+                        throw std::runtime_error("CreateClass: loadout slot value not string");
+                    }
+                    char_class.starting_equipment[*slot] = pair.second.as<std::string>();
+                }
             }
 
             engine->get_class_registry().register_item(id, char_class);
-            logger->debug("Registered class '{}' ({}) with growth pattern '{}'", id, name, growth_pattern_id);
+            logger->debug("Registered class '{}' ({}) with growth pattern '{}', "
+                         "{} equipped items, {} bag items",
+                         id, name, growth_pattern_id,
+                         char_class.starting_equipment.size(),
+                         char_class.starting_inventory.size());
         },
         LuaFunctionDoc{
             .description = "Create a character class",
             .params = {
-                {"class_table", "table", "Table with fields: id, name, description, growth_pattern_id, starting_stats"}
+                {"class_table", "table",
+                 "Fields: id, name, description, growth_pattern_id, "
+                 "starting_stats (optional), starting_loadout (optional table "
+                 "with slot keys + optional inventory array)"}
             }
         }
     );

@@ -13,6 +13,8 @@ constexpr int ACTION_COST_CLOSE_DOOR = 100;
 constexpr int ACTION_COST_ATTACK = 100;
 constexpr int ACTION_COST_PICKUP = 100;
 constexpr int ACTION_COST_DROP = 100;
+constexpr int ACTION_COST_EQUIP = 100;
+constexpr int ACTION_COST_UNEQUIP = 100;
 
 // XP reward for killing any mob. Placeholder until per-mob XP is data-driven.
 constexpr int XP_REWARD_PER_KILL = 25;

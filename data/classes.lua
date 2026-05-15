@@ -132,6 +132,13 @@ Engine.CreateGrowthPattern({
 --   growth_pattern_id: string - ID of growth pattern to use
 --   starting_stats: table (optional) - starting stat bonuses
 
+-- starting_loadout (optional):
+--   { main_hand = id, off_hand = id, head = id, chest = id, legs = id,
+--     boots = id, gloves = id, amulet = id, ring_1 = id, ring_2 = id,
+--     inventory = { id, id, ... } }
+-- Items referenced by id must be registered by data/items.lua. Equipped
+-- items spawn already worn; inventory items spawn in the bag.
+
 -- Warrior - Strong melee combatant
 Engine.CreateClass({
     id = "warrior",
@@ -142,6 +149,13 @@ Engine.CreateClass({
         strength = 5,
         constitution = 3,
         dexterity = 2
+    },
+    starting_loadout = {
+        main_hand = "longsword",
+        off_hand  = "wooden_shield",
+        chest     = "leather_armor",
+        head      = "leather_cap",
+        inventory = { "healing_potion" },
     }
 })
 
@@ -155,6 +169,13 @@ Engine.CreateClass({
         dexterity = 5,
         cunning = 4,
         composure = 2
+    },
+    starting_loadout = {
+        main_hand = "dagger",
+        chest     = "leather_armor",
+        boots     = "leather_boots",
+        gloves    = "leather_gloves",
+        inventory = { "dagger", "healing_potion" },
     }
 })
 
@@ -168,6 +189,11 @@ Engine.CreateClass({
         intelligence = 5,
         attunement = 4,
         focus = 3
+    },
+    starting_loadout = {
+        main_hand = "staff",     -- two-handed; off-hand stays locked
+        chest     = "robe",
+        inventory = { "scroll", "scroll", "healing_potion" },
     }
 })
 
@@ -182,6 +208,13 @@ Engine.CreateClass({
         resilience = 3,
         constitution = 2,
         composure = 2
+    },
+    starting_loadout = {
+        main_hand = "mace",
+        off_hand  = "wooden_shield",
+        chest     = "leather_armor",
+        amulet    = "amulet_of_health",
+        inventory = { "healing_potion", "healing_potion" },
     }
 })
 
@@ -196,6 +229,14 @@ Engine.CreateClass({
         faith = 3,
         constitution = 3,
         resilience = 2
+    },
+    starting_loadout = {
+        main_hand = "longsword",
+        off_hand  = "steel_shield",
+        chest     = "chain_mail",
+        head      = "leather_cap",
+        legs      = "leather_leggings",
+        inventory = { "healing_potion" },
     }
 })
 
@@ -208,5 +249,11 @@ Engine.CreateClass({
     starting_stats = {
         charisma = 3,
         presence = 2
+    },
+    starting_loadout = {
+        main_hand = "dagger",
+        chest     = "robe",
+        ring_1    = "ring_of_protection",
+        inventory = { "healing_potion", "healing_potion", "scroll", "gold" },
     }
 })

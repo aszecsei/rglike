@@ -8,6 +8,7 @@
 #include <engine/builders/town_builder.h>
 #include <engine/components.h>
 #include <engine/constants.h>
+#include <engine/equipment.h>
 #include <engine/map_builder.h>
 #include <engine/well512.h>
 #include <ftxui/component/event.hpp>
@@ -30,6 +31,7 @@ GameplayScene::GameplayScene(engine::Engine* engine, const engine::CharacterCrea
 
     initialize_map();
     initialize_player_stats();
+    initialize_starting_loadout();
     spawn_entities();
     add_initial_log_messages();
     setup_ui();
@@ -58,6 +60,62 @@ void GameplayScene::initialize_player_stats() {
 
     // The player carries a 26-slot bag from the start. Empty until pickups.
     registry.emplace<engine::InventoryComponent>(player_entity);
+    // Equipment slots also start empty; initialize_starting_loadout fills
+    // them with the class's worn gear after stats are settled.
+    registry.emplace<engine::EquipmentComponent>(player_entity);
+}
+
+void GameplayScene::initialize_starting_loadout() {
+    auto& registry = world_.get_registry();
+    auto player_entity = world_.get_player_entity();
+
+    auto cls = get_engine()->get_class_registry().get(character_data_.class_id);
+    if (!cls) return;  // Missing class: nothing to give.
+
+    const auto* item_reg = world_.get_item_registry();
+    if (!item_reg) return;
+
+    auto& equip = registry.get<engine::EquipmentComponent>(player_entity);
+
+    // Worn gear. Each entry spawns a non-stackable item entity off-map,
+    // tags it Carried + Equipped, and registers it in the equipment map.
+    // Unknown ids and ids whose template lacks equip_slot (or whose slot
+    // kind disagrees with the configured physical slot) are logged at
+    // load time; here we accept whatever the registry returned to keep
+    // the data pipeline as the single source of validation truth.
+    for (const auto& [slot, item_id] : cls->starting_equipment) {
+        auto tmpl = item_reg->get(item_id);
+        if (!tmpl) {
+            spdlog::warn("Starting loadout: unknown item id '{}' for slot {}",
+                         item_id, std::string(engine::to_string(slot)));
+            continue;
+        }
+
+        auto e = registry.create();
+        registry.emplace<engine::Renderable>(e,
+                                             tmpl->glyph,
+                                             tmpl->fg_color,
+                                             tmpl->bg_color,
+                                             tmpl->bold,
+                                             tmpl->render_order);
+        registry.emplace<engine::NameComponent>(e, tmpl->name);
+        engine::ItemComponent ic;
+        ic.item_id = item_id;
+        ic.is_stackable = false;  // Equippable items are always non-stackable.
+        ic.count = 1;
+        registry.emplace<engine::ItemComponent>(e, std::move(ic));
+        registry.emplace<engine::Carried>(e, engine::Carried{player_entity});
+        registry.emplace<engine::Equipped>(e, engine::Equipped{player_entity, slot});
+        equip.slots[slot] = e;
+    }
+
+    // Bag contents. give_item_to handles stackable merging and lettering.
+    for (const auto& item_id : cls->starting_inventory) {
+        if (!world_.give_item_to(player_entity, item_id, 1)) {
+            spdlog::warn("Starting loadout: failed to give '{}' to player",
+                         item_id);
+        }
+    }
 }
 
 void GameplayScene::initialize_map() {
@@ -238,7 +296,7 @@ void GameplayScene::setup_ui() {
     component_ = CatchEvent(Renderer(split, [this, split, log_panel] {
         auto status_text = log_panel->Focused()
             ? text("TAB: Game | Arrow/J/K: Scroll | PgUp/PgDn/Home/End: Jump | Q: Quit") | dim | center
-            : text("TAB: Log | Arrow/Numpad: Move | g/d/i: Pickup/Drop/Inv | 5/.: Wait | Q: Quit") | dim | center;
+            : text("TAB: Log | Arrow/Numpad: Move | g/d/i: Pickup/Drop/Inv | w/T: Equip/TakeOff | 5/.: Wait | Q: Quit") | dim | center;
 
         Element body = split->Render() | flex;
         if (modal_kind_ != engine::ui::InventoryModalKind::None) {
@@ -303,6 +361,46 @@ void GameplayScene::setup_ui() {
                 open_pickup_choice();
                 return true;
             }
+            if (event == Event::Character('w')) {
+                // Open equip modal only if the bag holds at least one
+                // equippable item; otherwise log a hint.
+                auto& registry = world_.get_registry();
+                auto player = world_.get_player_entity();
+                const auto* inv = registry.try_get<engine::InventoryComponent>(player);
+                const auto* item_reg = world_.get_item_registry();
+                bool any = false;
+                if (inv && item_reg) {
+                    for (const auto& slot : inv->slots) {
+                        if (!slot.unique_item) continue;
+                        if (!registry.valid(*slot.unique_item)) continue;
+                        const auto* ic = registry.try_get<engine::ItemComponent>(*slot.unique_item);
+                        if (!ic) continue;
+                        if (auto tmpl = item_reg->get(ic->item_id)) {
+                            if (tmpl->equip_slot) { any = true; break; }
+                        }
+                    }
+                }
+                if (!any) {
+                    world_.get_game_log().entry()
+                        .text("You have nothing to equip.").log();
+                } else {
+                    modal_kind_ = engine::ui::InventoryModalKind::EquipChoice;
+                }
+                return true;
+            }
+            if (event == Event::Character('T')) {
+                // Open unequip modal only if anything is worn.
+                auto& registry = world_.get_registry();
+                auto player = world_.get_player_entity();
+                const auto* equip = registry.try_get<engine::EquipmentComponent>(player);
+                if (!equip || equip->slots.empty()) {
+                    world_.get_game_log().entry()
+                        .text("You aren't wearing anything to take off.").log();
+                } else {
+                    modal_kind_ = engine::ui::InventoryModalKind::UnequipChoice;
+                }
+                return true;
+            }
         }
 
         return false;
@@ -342,6 +440,7 @@ bool GameplayScene::handle_modal_event(const ftxui::Event& event) {
     if (event == Event::Escape) {
         modal_kind_ = engine::ui::InventoryModalKind::None;
         pickup_choices_.clear();
+        pending_equip_letter_ = 0;
         return true;
     }
 
@@ -354,10 +453,30 @@ bool GameplayScene::handle_modal_event(const ftxui::Event& event) {
     if (!event.is_character()) return true;
     std::string ch = event.character();
     if (ch.size() != 1) return true;
-    char letter = ch[0];
-    if (letter < 'a' || letter > 'z') return true;
+    char ch0 = ch[0];
 
     auto player = world_.get_player_entity();
+
+    // RingSlotChoice consumes digit keys '1'/'2' instead of letters.
+    if (modal_kind_ == engine::ui::InventoryModalKind::RingSlotChoice) {
+        if (pending_equip_letter_ == 0) {
+            modal_kind_ = engine::ui::InventoryModalKind::None;
+            return true;
+        }
+        std::optional<engine::EquipmentSlot> choice;
+        if (ch0 == '1') choice = engine::EquipmentSlot::RING_1;
+        else if (ch0 == '2') choice = engine::EquipmentSlot::RING_2;
+        if (!choice) return true;
+        char letter = pending_equip_letter_;
+        pending_equip_letter_ = 0;
+        modal_kind_ = engine::ui::InventoryModalKind::None;
+        world_.apply_player_action(
+            std::make_unique<engine::EquipAction>(player, letter, *choice));
+        return true;
+    }
+
+    char letter = ch0;
+    if (letter < 'a' || letter > 'z') return true;
 
     if (modal_kind_ == engine::ui::InventoryModalKind::DropChoice) {
         // Verify the slot exists before dispatching, so an unknown letter is
@@ -387,6 +506,49 @@ bool GameplayScene::handle_modal_event(const ftxui::Event& event) {
         modal_kind_ = engine::ui::InventoryModalKind::None;
         pickup_choices_.clear();
         world_.apply_player_action(std::make_unique<engine::PickupAction>(player, chosen));
+        return true;
+    }
+
+    if (modal_kind_ == engine::ui::InventoryModalKind::EquipChoice) {
+        // Verify the slot exists and the item is equippable before
+        // dispatching. If it is a ring and both ring slots are full, pivot
+        // to the RingSlotChoice modal instead of queueing the action.
+        auto& registry = world_.get_registry();
+        const auto* inv = registry.try_get<engine::InventoryComponent>(player);
+        const auto* item_reg = world_.get_item_registry();
+        if (!inv || !item_reg) {
+            modal_kind_ = engine::ui::InventoryModalKind::None;
+            return true;
+        }
+        auto it = std::find_if(inv->slots.begin(), inv->slots.end(),
+            [letter](const engine::InventorySlot& s) { return s.letter == letter; });
+        if (it == inv->slots.end() || !it->unique_item) return true;
+        const auto* ic = registry.try_get<engine::ItemComponent>(*it->unique_item);
+        if (!ic) return true;
+        auto tmpl = item_reg->get(ic->item_id);
+        if (!tmpl || !tmpl->equip_slot) return true;
+
+        if (*tmpl->equip_slot == engine::ItemSlotKind::RING) {
+            const auto* equip = registry.try_get<engine::EquipmentComponent>(player);
+            const bool r1 = equip && equip->slots.find(engine::EquipmentSlot::RING_1) != equip->slots.end();
+            const bool r2 = equip && equip->slots.find(engine::EquipmentSlot::RING_2) != equip->slots.end();
+            if (r1 && r2) {
+                pending_equip_letter_ = letter;
+                modal_kind_ = engine::ui::InventoryModalKind::RingSlotChoice;
+                return true;
+            }
+        }
+
+        modal_kind_ = engine::ui::InventoryModalKind::None;
+        world_.apply_player_action(std::make_unique<engine::EquipAction>(player, letter));
+        return true;
+    }
+
+    if (modal_kind_ == engine::ui::InventoryModalKind::UnequipChoice) {
+        auto slot = engine::ui::unequip_letter_to_slot(world_, letter);
+        if (!slot) return true;  // ignore stray letters
+        modal_kind_ = engine::ui::InventoryModalKind::None;
+        world_.apply_player_action(std::make_unique<engine::UnequipAction>(player, *slot));
         return true;
     }
 

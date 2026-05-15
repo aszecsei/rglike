@@ -9,6 +9,7 @@ add_library(engine STATIC
     src/ui/stats_panel.cpp
     src/ui/inventory_panel.cpp
     src/action.cpp
+    src/equipment.cpp
         src/utils.hpp
 )
 
