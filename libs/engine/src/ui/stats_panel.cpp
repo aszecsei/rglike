@@ -15,7 +15,7 @@ namespace {
 Element resource_row(const Stats& stats, ResourcePool pool, Color bar_color) {
     int cur = stats.get_resource(pool);
     int max = stats.get_max_resource(pool);
-    float ratio = max > 0 ? static_cast<float>(cur) / static_cast<float>(max) : 0.0f;
+    float ratio = max > 0 ? static_cast<float>(cur) / static_cast<float>(max) : 0.0F;
 
     auto label = text(get_resource_name(pool)) | size(WIDTH, EQUAL, 12);
     auto numeric = text(std::to_string(cur) + "/" + std::to_string(max))

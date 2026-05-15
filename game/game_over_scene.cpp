@@ -61,7 +61,7 @@ GameOverScene::GameOverScene(engine::Engine* engine,
         }) | borderDouble | center;
     });
 
-    component_ = CatchEvent(renderer, [this](Event event) {
+    component_ = CatchEvent(renderer, [this](const Event& event) {
         // Any keypress returns to the main menu. Filter mouse events so
         // mouse movement doesn't immediately dismiss the screen.
         if (event.is_mouse()) return false;

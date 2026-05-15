@@ -35,19 +35,20 @@ static std::vector<LuaFunctionDoc> function_docs;
 
 // Helper function to parse faction response string
 static std::optional<FactionResponse> parse_faction_response(const std::string& response_str,
-                                                               std::shared_ptr<spdlog::logger> logger,
+                                                               const std::shared_ptr<spdlog::logger>& logger,
                                                                const std::string& context = "") {
     if (response_str == "IGNORE") {
         return FactionResponse::IGNORE;
-    } else if (response_str == "ATTACK") {
-        return FactionResponse::ATTACK;
-    } else if (response_str == "FLEE") {
-        return FactionResponse::FLEE;
-    } else {
-        logger->error("{}: Invalid response '{}' (must be IGNORE, ATTACK, or FLEE)",
-                     context.empty() ? "parse_faction_response" : context, response_str);
-        return std::nullopt;
     }
+    if (response_str == "ATTACK") {
+        return FactionResponse::ATTACK;
+    }
+    if (response_str == "FLEE") {
+        return FactionResponse::FLEE;
+    }
+    logger->error("{}: Invalid response '{}' (must be IGNORE, ATTACK, or FLEE)",
+                 context.empty() ? "parse_faction_response" : context, response_str);
+    return std::nullopt;
 }
 
 // Helper function to parse RGB color from Lua table
@@ -59,7 +60,7 @@ static ftxui::Color parse_rgb_color(sol::table color_table) {
 // Keys are the canonical lowercase stat names already used in races/classes.
 // Unrecognized keys are ignored here — callers that want to flag them (e.g.
 // CreateClass for unknown starting_loadout keys) inspect the table directly.
-static void parse_core_stat_map(sol::table table, std::unordered_map<CoreStat, int>& out) {
+static void parse_core_stat_map(const sol::table& table, std::unordered_map<CoreStat, int>& out) {
     if (auto v = table.get<sol::optional<int>>("strength"))     out[CoreStat::STRENGTH]     = *v;
     if (auto v = table.get<sol::optional<int>>("dexterity"))    out[CoreStat::DEXTERITY]    = *v;
     if (auto v = table.get<sol::optional<int>>("constitution")) out[CoreStat::CONSTITUTION] = *v;
@@ -77,14 +78,19 @@ static void parse_core_stat_map(sol::table table, std::unordered_map<CoreStat, i
 // Helper to register a function in a table with its documentation
 template<typename Func>
 void register_table_function(sol::table& table, const std::string& table_name,
-                             const std::string& name, Func&& func, LuaFunctionDoc doc) {
+                             const std::string& name, Func&& func,
+                             std::string description,
+                             std::vector<LuaFunctionParam> params) {
     table.set_function(name, std::forward<Func>(func));
-    doc.table_name = table_name;
-    doc.name = name;
-    function_docs.push_back(std::move(doc));
+    function_docs.push_back(LuaFunctionDoc{
+        .table_name = table_name,
+        .name = name,
+        .description = std::move(description),
+        .params = std::move(params),
+    });
 }
 
-void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<spdlog::logger> logger) {
+void LuaBindings::initialize(sol::state& lua, Engine* engine, const std::shared_ptr<spdlog::logger>& logger) {
     // Clear previous documentation
     function_docs.clear();
 
@@ -148,11 +154,9 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             logger->debug("Registered terrain '{}' with glyph '{}' (passable={}, blocks_vision={})",
                          id, glyph, passable, blocks_vision);
         },
-        LuaFunctionDoc{
-            .description = "Create a terrain type",
-            .params = {
-                {"terrain_table", "table", "Table with fields: id, glyph, fg_color (RGB array), mg_color (optional RGB array), bg_color (optional RGB array), passable, blocks_vision"}
-            }
+        "Create a terrain type",
+        {
+            {.name = "terrain_table", .type = "table", .description = "Table with fields: id, glyph, fg_color (RGB array), mg_color (optional RGB array), bg_color (optional RGB array), passable, blocks_vision"}
         }
     );
 
@@ -214,10 +218,10 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
                         continue;
                     }
                     de.item_id = *entry_id;
-                    de.chance = entry.get_or("chance", 1.0f);
+                    de.chance = entry.get_or("chance", 1.0F);
                     de.min_count = entry.get_or("min_count", 1);
                     de.max_count = entry.get_or("max_count", de.min_count);
-                    if (de.max_count < de.min_count) de.max_count = de.min_count;
+                    de.max_count = std::max(de.max_count, de.min_count);
                     drops.push_back(std::move(de));
                 }
             }
@@ -239,7 +243,7 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             sol::optional<sol::table> stats_opt = mob_table["stats"];
             if (stats_opt) {
                 // New stats system
-                sol::table stats_table = *stats_opt;
+                const sol::table& stats_table = *stats_opt;
                 Stats stats;
 
                 // Set core stats if provided
@@ -280,11 +284,9 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
 
             engine->get_mob_registry().register_item(id, mob);
         },
-        LuaFunctionDoc{
-            .description = "Create a mob type",
-            .params = {
-                {"mob_table", "table", "Table with fields: id, name, glyph, fg_color (RGB array), bg_color (optional RGB array), bold (optional), render_order (optional), blocks_movement (optional), blocks_vision (optional), vision_range, max_hp, defense, power, faction_id (optional)"}
-            }
+        "Create a mob type",
+        {
+            {.name = "mob_table", .type = "table", .description = "Table with fields: id, name, glyph, fg_color (RGB array), bg_color (optional RGB array), bold (optional), render_order (optional), blocks_movement (optional), blocks_vision (optional), vision_range, max_hp, defense, power, faction_id (optional)"}
         }
     );
 
@@ -325,15 +327,13 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             logger->debug("Registered prop '{}' ({}) glyph='{}' openable={}",
                          id, name, glyph, prop.open_glyph.has_value());
         },
-        LuaFunctionDoc{
-            .description = "Create a prop (scenery or interactive object)",
-            .params = {
-                {"prop_table", "table",
-                 "Fields: id, name (optional), glyph, fg_color (RGB array), "
-                 "bg_color (optional RGB array), bold (optional), render_order (optional), "
-                 "blocks_movement (optional), blocks_vision (optional), "
-                 "open_glyph (optional string — presence flags it as a door)"}
-            }
+        "Create a prop (scenery or interactive object)",
+        {
+            {.name = "prop_table", .type = "table",
+             .description = "Fields: id, name (optional), glyph, fg_color (RGB array), "
+                            "bg_color (optional RGB array), bold (optional), render_order (optional), "
+                            "blocks_movement (optional), blocks_vision (optional), "
+                            "open_glyph (optional string — presence flags it as a door)"}
         }
     );
 
@@ -411,18 +411,16 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
                          item.equip_slot ? std::string(to_string(*item.equip_slot)) : "(none)",
                          item.two_handed, item.damage_bonus, item.defense_bonus);
         },
-        LuaFunctionDoc{
-            .description = "Create an item type",
-            .params = {
-                {"item_table", "table",
-                 "Fields: id, name (optional), glyph, fg_color (RGB array), "
-                 "bg_color (optional RGB array), bold (optional), "
-                 "render_order (optional), is_stackable (optional), "
-                 "equip_slot (optional: main_hand|off_hand|head|chest|legs|"
-                 "boots|gloves|amulet|ring), two_handed (optional), "
-                 "damage_bonus (optional int), defense_bonus (optional int), "
-                 "stat_bonuses (optional table of core stat → int)"}
-            }
+        "Create an item type",
+        {
+            {.name = "item_table", .type = "table",
+             .description = "Fields: id, name (optional), glyph, fg_color (RGB array), "
+                            "bg_color (optional RGB array), bold (optional), "
+                            "render_order (optional), is_stackable (optional), "
+                            "equip_slot (optional: main_hand|off_hand|head|chest|legs|"
+                            "boots|gloves|amulet|ring), two_handed (optional), "
+                            "damage_bonus (optional int), defense_bonus (optional int), "
+                            "stat_bonuses (optional table of core stat → int)"}
         }
     );
 
@@ -459,11 +457,9 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
 
             return faction;
         },
-        LuaFunctionDoc{
-            .description = "Create a faction and return the faction object",
-            .params = {
-                {"faction_table", "table", "Table with fields: id, name, responses (optional table mapping target faction IDs to response strings)"}
-            }
+        "Create a faction and return the faction object",
+        {
+            {.name = "faction_table", .type = "table", .description = "Table with fields: id, name, responses (optional table mapping target faction IDs to response strings)"}
         }
     );
 
@@ -482,7 +478,7 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             // Parse stat modifiers if provided
             sol::optional<sol::table> mods_opt = race_table["stat_modifiers"];
             if (mods_opt) {
-                sol::table mods = *mods_opt;
+                const sol::table& mods = *mods_opt;
                 if (auto val = mods.get<sol::optional<int>>("strength")) race.stat_modifiers[CoreStat::STRENGTH] = *val;
                 if (auto val = mods.get<sol::optional<int>>("dexterity")) race.stat_modifiers[CoreStat::DEXTERITY] = *val;
                 if (auto val = mods.get<sol::optional<int>>("constitution")) race.stat_modifiers[CoreStat::CONSTITUTION] = *val;
@@ -500,11 +496,9 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             engine->get_race_registry().register_item(id, race);
             logger->debug("Registered race '{}' ({})", id, name);
         },
-        LuaFunctionDoc{
-            .description = "Create a race",
-            .params = {
-                {"race_table", "table", "Table with fields: id, name, description, stat_modifiers"}
-            }
+        "Create a race",
+        {
+            {.name = "race_table", .type = "table", .description = "Table with fields: id, name, description, stat_modifiers"}
         }
     );
 
@@ -590,14 +584,12 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
                          char_class.starting_equipment.size(),
                          char_class.starting_inventory.size());
         },
-        LuaFunctionDoc{
-            .description = "Create a character class",
-            .params = {
-                {"class_table", "table",
-                 "Fields: id, name, description, growth_pattern_id, "
-                 "starting_stats (optional), starting_loadout (optional table "
-                 "with slot keys + optional inventory array)"}
-            }
+        "Create a character class",
+        {
+            {.name = "class_table", .type = "table",
+             .description = "Fields: id, name, description, growth_pattern_id, "
+                            "starting_stats (optional), starting_loadout (optional table "
+                            "with slot keys + optional inventory array)"}
         }
     );
 
@@ -613,7 +605,7 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             // Parse growth rates (0.0 - 1.0 floats)
             sol::optional<sol::table> rates_opt = pattern_table["growth_rates"];
             if (rates_opt) {
-                sol::table rates = *rates_opt;
+                const sol::table& rates = *rates_opt;
                 if (auto val = rates.get<sol::optional<float>>("strength")) pattern.growth_rates[CoreStat::STRENGTH] = *val;
                 if (auto val = rates.get<sol::optional<float>>("dexterity")) pattern.growth_rates[CoreStat::DEXTERITY] = *val;
                 if (auto val = rates.get<sol::optional<float>>("constitution")) pattern.growth_rates[CoreStat::CONSTITUTION] = *val;
@@ -631,11 +623,9 @@ void LuaBindings::initialize(sol::state& lua, Engine* engine, std::shared_ptr<sp
             engine->get_growth_pattern_registry().register_item(id, pattern);
             logger->debug("Registered growth pattern '{}' ({})", id, name);
         },
-        LuaFunctionDoc{
-            .description = "Create a stat growth pattern for character classes",
-            .params = {
-                {"pattern_table", "table", "Table with fields: id, name, growth_rates (0.0-1.0 chance per stat)"}
-            }
+        "Create a stat growth pattern for character classes",
+        {
+            {.name = "pattern_table", .type = "table", .description = "Table with fields: id, name, growth_rates (0.0-1.0 chance per stat)"}
         }
     );
 

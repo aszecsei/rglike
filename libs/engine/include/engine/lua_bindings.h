@@ -11,7 +11,7 @@ class Engine;
 class LuaBindings {
 public:
     // Initialize Lua state with all bindings
-    static void initialize(sol::state& lua, Engine* engine, std::shared_ptr<spdlog::logger> logger);
+    static void initialize(sol::state& lua, Engine* engine, const std::shared_ptr<spdlog::logger>& logger);
 
     // Generate Lua type definition file for editor support
     static void generate_type_definitions(const std::string& output_path);

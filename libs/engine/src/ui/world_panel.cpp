@@ -36,8 +36,8 @@ namespace engine::ui {
             int camera_center_y = camera ? camera->y : 0;
 
             // Calculate top-left corner of viewport (camera is centered)
-            int camera_x = camera_center_x - viewport_width / 2;
-            int camera_y = camera_center_y - viewport_height / 2;
+            int camera_x = camera_center_x - (viewport_width / 2);
+            int camera_y = camera_center_y - (viewport_height / 2);
 
             // Clamp camera to world bounds
             camera_x = std::max(0, std::min(camera_x, world_width - viewport_width));
@@ -149,7 +149,8 @@ namespace engine::ui {
 
             if (!Focused()) { return false; }
 
-            int dx = 0, dy = 0;
+            int dx = 0;
+            int dy = 0;
             bool moved = false;
             bool wait = false;
 

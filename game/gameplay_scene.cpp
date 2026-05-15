@@ -20,8 +20,8 @@
 
 using namespace ftxui;
 
-GameplayScene::GameplayScene(engine::Engine* engine, const engine::CharacterCreationData& character_data)
-    : engine::Scene(engine), character_data_(character_data), world_(100, 50, "The Town of Millhaven") {
+GameplayScene::GameplayScene(engine::Engine* engine, engine::CharacterCreationData character_data)
+    : engine::Scene(engine), character_data_(std::move(character_data)), world_(100, 50, "The Town of Millhaven") {
 
     // Wire faction and item lookups before anything queues actions or runs AI.
     // The item registry is needed both by spawn_ground_item (called from the
@@ -105,7 +105,7 @@ void GameplayScene::initialize_starting_loadout() {
         ic.count = 1;
         registry.emplace<engine::ItemComponent>(e, std::move(ic));
         registry.emplace<engine::Carried>(e, engine::Carried{player_entity});
-        registry.emplace<engine::Equipped>(e, engine::Equipped{player_entity, slot});
+        registry.emplace<engine::Equipped>(e, engine::Equipped{.owner = player_entity, .slot = slot});
         equip.slots[slot] = e;
     }
 
@@ -314,7 +314,7 @@ void GameplayScene::setup_ui() {
             separator(),
             status_text,
         }) | border;
-    }), [this, log_panel, world_panel](Event event) {
+    }), [this, log_panel, world_panel](const Event& event) {
         // Modal keys win when a modal is open. They handle Esc + slot letters
         // and dispatch the corresponding action.
         if (modal_kind_ != engine::ui::InventoryModalKind::None) {
@@ -487,7 +487,7 @@ bool GameplayScene::handle_modal_event(const ftxui::Event& event) {
             modal_kind_ = engine::ui::InventoryModalKind::None;
             return true;
         }
-        auto it = std::find_if(inv->slots.begin(), inv->slots.end(),
+        auto it = std::ranges::find_if(inv->slots,
             [letter](const engine::InventorySlot& s) { return s.letter == letter; });
         if (it == inv->slots.end()) {
             return true;  // ignore stray letters
@@ -498,7 +498,7 @@ bool GameplayScene::handle_modal_event(const ftxui::Event& event) {
     }
 
     if (modal_kind_ == engine::ui::InventoryModalKind::PickupChoice) {
-        std::size_t idx = static_cast<std::size_t>(letter - 'a');
+        auto idx = static_cast<std::size_t>(letter - 'a');
         if (idx >= pickup_choices_.size()) {
             return true;
         }
@@ -520,7 +520,7 @@ bool GameplayScene::handle_modal_event(const ftxui::Event& event) {
             modal_kind_ = engine::ui::InventoryModalKind::None;
             return true;
         }
-        auto it = std::find_if(inv->slots.begin(), inv->slots.end(),
+        auto it = std::ranges::find_if(inv->slots,
             [letter](const engine::InventorySlot& s) { return s.letter == letter; });
         if (it == inv->slots.end() || !it->unique_item) return true;
         const auto* ic = registry.try_get<engine::ItemComponent>(*it->unique_item);
@@ -530,8 +530,8 @@ bool GameplayScene::handle_modal_event(const ftxui::Event& event) {
 
         if (*tmpl->equip_slot == engine::ItemSlotKind::RING) {
             const auto* equip = registry.try_get<engine::EquipmentComponent>(player);
-            const bool r1 = equip && equip->slots.find(engine::EquipmentSlot::RING_1) != equip->slots.end();
-            const bool r2 = equip && equip->slots.find(engine::EquipmentSlot::RING_2) != equip->slots.end();
+            const bool r1 = equip && equip->slots.contains(engine::EquipmentSlot::RING_1);
+            const bool r2 = equip && equip->slots.contains(engine::EquipmentSlot::RING_2);
             if (r1 && r2) {
                 pending_equip_letter_ = letter;
                 modal_kind_ = engine::ui::InventoryModalKind::RingSlotChoice;

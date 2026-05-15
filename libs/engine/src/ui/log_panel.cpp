@@ -57,22 +57,27 @@ namespace engine::ui {
                 (event.is_mouse() && event.mouse().button == Mouse::WheelUp)) {
                 selected_ = std::max(0, selected_ - 1);
                 return true;
-            } else if (event == Event::ArrowDown || event == Event::Character('j') ||
-                       (event.is_mouse() && event.mouse().button == Mouse::WheelDown)) {
+            }
+            if (event == Event::ArrowDown || event == Event::Character('j') ||
+                (event.is_mouse() && event.mouse().button == Mouse::WheelDown)) {
                 selected_ = std::min(log_.get_entry_count() - 1, selected_ + 1);
                 return true;
-            } else if (event == Event::PageUp) {
+            }
+            if (event == Event::PageUp) {
                 int height = box_.y_max - box_.y_min;
                 selected_ = std::max(0, selected_ - height);
                 return true;
-            } else if (event == Event::PageDown) {
+            }
+            if (event == Event::PageDown) {
                 int height = box_.y_max - box_.y_min;
                 selected_ = std::min(log_.get_entry_count() - 1, selected_ + height);
                 return true;
-            } else if (event == Event::Home) {
+            }
+            if (event == Event::Home) {
                 selected_ = 0;
                 return true;
-            } else if (event == Event::End) {
+            }
+            if (event == Event::End) {
                 selected_ = log_.get_entry_count() - 1;
                 return true;
             }

@@ -29,5 +29,7 @@ target_link_libraries(engine PUBLIC
     spdlog::spdlog
 )
 
+target_link_libraries(engine PRIVATE project_options)
+
 # Require C++20
 target_compile_features(engine PUBLIC cxx_std_20)

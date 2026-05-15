@@ -45,8 +45,7 @@ jobs:
           # Optional shell script that runs AFTER 'apt_pckgs' and before CMake
           init_script: init_script.sh
 
-          # Optional Clang-Tidy arguments
-          clang_tidy_args: -checks='*,fuchsia-*,google-*,zircon-*,abseil-*,modernize-use-trailing-return-type'
+          # Clang-Tidy checks are configured in the repo's .clang-tidy file.
 
           # Optional Cppcheck arguments
           cppcheck_args: --enable=all --suppress=missingIncludeSystem

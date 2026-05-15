@@ -36,7 +36,7 @@ ftxui::Component SceneManager::get_component() {
         if (!current_scene_) {
             return false;
         }
-        return current_scene_->get_component()->OnEvent(event);
+        return current_scene_->get_component()->OnEvent(std::move(event));
     });
 }
 

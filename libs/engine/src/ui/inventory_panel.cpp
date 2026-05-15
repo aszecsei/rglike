@@ -73,7 +73,7 @@ std::optional<Item> entity_template(const entt::registry& registry,
 // Sort a copy of an inventory's slots by letter for stable rendering.
 std::vector<InventorySlot> sorted_slots(const InventoryComponent& inv) {
     std::vector<InventorySlot> sorted = inv.slots;
-    std::sort(sorted.begin(), sorted.end(),
+    std::ranges::sort(sorted,
               [](const InventorySlot& a, const InventorySlot& b) {
                   return a.letter < b.letter;
               });
@@ -237,7 +237,7 @@ std::vector<UnequipEntry> live_unequip_entries(const World& world) {
     for (EquipmentSlot slot : kAllEquipmentSlots) {
         auto it = equip->slots.find(slot);
         if (it == equip->slots.end()) continue;
-        out.push_back({letter, slot, it->second});
+        out.push_back({.letter = letter, .slot = slot, .entity = it->second});
         ++letter;
         if (letter > 'z') break;
     }
