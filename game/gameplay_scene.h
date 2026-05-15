@@ -11,7 +11,7 @@
 
 class GameplayScene : public engine::Scene {
 public:
-    explicit GameplayScene(engine::Engine* engine, const engine::CharacterCreationData& character_data);
+    explicit GameplayScene(engine::Engine* engine, engine::CharacterCreationData character_data);
     ~GameplayScene() override = default;
 
     void update() override;

@@ -7,7 +7,7 @@ add_executable(rglike
 )
 
 # Link engine library
-target_link_libraries(rglike PRIVATE engine)
+target_link_libraries(rglike PRIVATE engine project_options)
 
 # Copy data files to build directory
 add_custom_command(TARGET rglike POST_BUILD

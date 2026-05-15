@@ -42,7 +42,7 @@ void CharacterBuilderScene::setup_ui() {
 
     // Wrap name input in a panel with focus tracking
     name_panel_ = Container::Vertical({name_input_});
-    name_panel_ = CatchEvent(name_panel_, [this](Event event) {
+    name_panel_ = CatchEvent(name_panel_, [this]([[maybe_unused]] const Event& event) {
         if (name_panel_->Focused()) { focused_panel_ = FocusedPanel::NAME; }
         return false;
     });
@@ -50,7 +50,7 @@ void CharacterBuilderScene::setup_ui() {
     // Gender selector
     gender_selector_ = Radiobox(&gender_options_, &gender_index_);
     gender_panel_ = Container::Vertical({gender_selector_});
-    gender_panel_ = CatchEvent(gender_panel_, [this](Event event) {
+    gender_panel_ = CatchEvent(gender_panel_, [this]([[maybe_unused]] const Event& event) {
         if (gender_panel_->Focused()) { focused_panel_ = FocusedPanel::GENDER; }
         return false;
     });
@@ -58,7 +58,7 @@ void CharacterBuilderScene::setup_ui() {
     // Race selector
     race_selector_ = Radiobox(&race_names_, &race_index_);
     race_panel_ = Container::Vertical({race_selector_});
-    race_panel_ = CatchEvent(race_panel_, [this](Event event) {
+    race_panel_ = CatchEvent(race_panel_, [this]([[maybe_unused]] const Event& event) {
         if (race_panel_->Focused()) { focused_panel_ = FocusedPanel::RACE; }
         return false;
     });
@@ -66,7 +66,7 @@ void CharacterBuilderScene::setup_ui() {
     // Class selector
     class_selector_ = Radiobox(&class_names_, &class_index_);
     class_panel_ = Container::Vertical({class_selector_});
-    class_panel_ = CatchEvent(class_panel_, [this](Event event) {
+    class_panel_ = CatchEvent(class_panel_, [this]([[maybe_unused]] const Event& event) {
         if (class_panel_->Focused()) { focused_panel_ = FocusedPanel::CLASS; }
         return false;
     });
@@ -187,7 +187,7 @@ std::string CharacterBuilderScene::get_info_text_for_panel(FocusedPanel panel) {
                "not affect gameplay mechanics.";
 
     case FocusedPanel::RACE: {
-        if (race_names_.empty() || race_index_ >= race_ids_.size()) {
+        if (race_names_.empty() || static_cast<size_t>(race_index_) >= race_ids_.size()) {
             return "Select a race to see its description and stat modifiers.";
         }
 
@@ -210,7 +210,7 @@ std::string CharacterBuilderScene::get_info_text_for_panel(FocusedPanel panel) {
     }
 
     case FocusedPanel::CLASS: {
-        if (class_names_.empty() || class_index_ >= class_ids_.size()) {
+        if (class_names_.empty() || static_cast<size_t>(class_index_) >= class_ids_.size()) {
             return "Select a class to see its description and growth rates.";
         }
 
@@ -273,12 +273,12 @@ void CharacterBuilderScene::finish_character_creation() {
         return;
     }
 
-    if (race_index_ >= race_ids_.size()) {
+    if (static_cast<size_t>(race_index_) >= race_ids_.size()) {
         get_engine()->get_logger()->warn("Must select a valid race");
         return;
     }
 
-    if (class_index_ >= class_ids_.size()) {
+    if (static_cast<size_t>(class_index_) >= class_ids_.size()) {
         get_engine()->get_logger()->warn("Must select a valid class");
         return;
     }
@@ -286,8 +286,8 @@ void CharacterBuilderScene::finish_character_creation() {
     // Populate character data
     character_data_.name = name_text_;
     character_data_.gender = gender_options_[gender_index_];
-    std::transform(
-        character_data_.gender.begin(), character_data_.gender.end(),
+    std::ranges::transform(
+        character_data_.gender,
         character_data_.gender.begin(), ::tolower
     );
     character_data_.race_id = race_ids_[race_index_];

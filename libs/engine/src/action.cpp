@@ -97,7 +97,7 @@ std::string MoveAction::description() const {
 }
 
 // OpenDoorAction implementation
-ActionResult OpenDoorAction::execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) {
+ActionResult OpenDoorAction::execute(World& world, [[maybe_unused]] std::queue<std::unique_ptr<Action>>& action_queue) {
     auto& registry = world.get_registry();
 
     // Find the door at the target position
@@ -135,7 +135,7 @@ std::string OpenDoorAction::description() const {
 }
 
 // CloseDoorAction implementation
-ActionResult CloseDoorAction::execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) {
+ActionResult CloseDoorAction::execute(World& world, [[maybe_unused]] std::queue<std::unique_ptr<Action>>& action_queue) {
     auto& registry = world.get_registry();
 
     // Find an open door at the target position
@@ -186,7 +186,7 @@ std::string CloseDoorAction::description() const {
 }
 
 // WaitAction implementation
-ActionResult WaitAction::execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) {
+ActionResult WaitAction::execute([[maybe_unused]] World& world, [[maybe_unused]] std::queue<std::unique_ptr<Action>>& action_queue) {
     // Simply pass the turn
     return {ActionResult::Status::Success, constants::ACTION_COST_WAIT};
 }
@@ -202,7 +202,7 @@ static std::string display_name(const entt::registry& registry, entt::entity e) 
 }
 
 // AttackAction implementation
-ActionResult AttackAction::execute(World& world, std::queue<std::unique_ptr<Action>>& action_queue) {
+ActionResult AttackAction::execute(World& world, [[maybe_unused]] std::queue<std::unique_ptr<Action>>& action_queue) {
     auto& registry = world.get_registry();
 
     if (!registry.valid(actor_) || !registry.valid(target_)) {
@@ -233,7 +233,7 @@ ActionResult AttackAction::execute(World& world, std::queue<std::unique_ptr<Acti
         ? equipment_damage_bonus(registry, *item_reg, actor_) : 0;
     int armor_value = item_reg
         ? equipment_defense_bonus(registry, *item_reg, target_) : 0;
-    int damage = std::max(1, attacker_str + weapon_damage - target_con / 2 - armor_value);
+    int damage = std::max(1, attacker_str + weapon_damage - (target_con / 2) - armor_value);
 
     target_stats->modify_resource(ResourcePool::HEALTH, -damage);
 
@@ -270,7 +270,7 @@ ActionResult AttackAction::execute(World& world, std::queue<std::unique_ptr<Acti
         } else {
             // Mob death: bloodstain, destroy entity, award XP.
             if (auto* map_comp = world.get_map_component()) {
-                int idx = target_pos->y * map_comp->map.width + target_pos->x;
+                int idx = (target_pos->y * map_comp->map.width) + target_pos->x;
                 map_comp->map.bloodstains.insert(idx);
             }
 
@@ -308,7 +308,7 @@ ActionResult AttackAction::execute(World& world, std::queue<std::unique_ptr<Acti
             if (auto* drops = registry.try_get<DropsComponent>(target_)) {
                 auto& rng = world.get_rng();
                 for (const auto& entry : drops->entries) {
-                    if (rng.uniform() > entry.chance) continue;
+                    if (rng.uniform() > static_cast<double>(entry.chance)) continue;
                     int count = (entry.max_count <= entry.min_count)
                                 ? entry.min_count
                                 : rng.range(entry.min_count, entry.max_count);
@@ -357,7 +357,7 @@ static std::string item_display_with_count(const std::string& base_name,
     return base_name;
 }
 
-ActionResult PickupAction::execute(World& world, std::queue<std::unique_ptr<Action>>&) {
+ActionResult PickupAction::execute(World& world, [[maybe_unused]] std::queue<std::unique_ptr<Action>>& action_queue) {
     auto& registry = world.get_registry();
     if (!registry.valid(actor_) || !registry.valid(item_)) {
         return {ActionResult::Status::Invalid, 0};
@@ -436,7 +436,7 @@ std::string PickupAction::description() const {
     return oss.str();
 }
 
-ActionResult DropAction::execute(World& world, std::queue<std::unique_ptr<Action>>&) {
+ActionResult DropAction::execute(World& world, [[maybe_unused]] std::queue<std::unique_ptr<Action>>& action_queue) {
     auto& registry = world.get_registry();
     if (!registry.valid(actor_)) return {ActionResult::Status::Invalid, 0};
 
@@ -444,7 +444,7 @@ ActionResult DropAction::execute(World& world, std::queue<std::unique_ptr<Action
     auto* inv = registry.try_get<InventoryComponent>(actor_);
     if (!actor_pos || !inv) return {ActionResult::Status::Invalid, 0};
 
-    auto it = std::find_if(inv->slots.begin(), inv->slots.end(),
+    auto it = std::ranges::find_if(inv->slots,
                             [this](const InventorySlot& s) { return s.letter == letter_; });
     if (it == inv->slots.end()) return {ActionResult::Status::Invalid, 0};
 
@@ -509,7 +509,7 @@ namespace {
 entt::entity find_inventory_entity(InventoryComponent& inv, char letter,
                                     const entt::registry& reg,
                                     std::vector<InventorySlot>::iterator& out_it) {
-    out_it = std::find_if(inv.slots.begin(), inv.slots.end(),
+    out_it = std::ranges::find_if(inv.slots,
                           [letter](const InventorySlot& s) { return s.letter == letter; });
     if (out_it == inv.slots.end()) return entt::null;
     if (!out_it->unique_item) return entt::null;
@@ -535,7 +535,7 @@ std::string equipped_item_name(const entt::registry& reg, entt::entity e) {
 
 } // namespace
 
-ActionResult EquipAction::execute(World& world, std::queue<std::unique_ptr<Action>>&) {
+ActionResult EquipAction::execute(World& world, [[maybe_unused]] std::queue<std::unique_ptr<Action>>& action_queue) {
     auto& registry = world.get_registry();
     if (!registry.valid(actor_)) return {ActionResult::Status::Invalid, 0};
 
@@ -569,11 +569,13 @@ ActionResult EquipAction::execute(World& world, std::queue<std::unique_ptr<Actio
     // follow-up modal). For non-rings there is exactly one candidate.
     EquipmentSlot target_slot;
     if (kind == ItemSlotKind::RING) {
-        const bool r1_empty = equip.slots.find(EquipmentSlot::RING_1) == equip.slots.end();
-        const bool r2_empty = equip.slots.find(EquipmentSlot::RING_2) == equip.slots.end();
-        if (r1_empty) target_slot = EquipmentSlot::RING_1;
-        else if (r2_empty) target_slot = EquipmentSlot::RING_2;
-        else if (ring_choice_ &&
+        const bool r1_empty = !equip.slots.contains(EquipmentSlot::RING_1);
+        const bool r2_empty = !equip.slots.contains(EquipmentSlot::RING_2);
+        if (r1_empty) {
+            target_slot = EquipmentSlot::RING_1;
+        } else if (r2_empty) {
+            target_slot = EquipmentSlot::RING_2;
+        } else if (ring_choice_ &&
                  (*ring_choice_ == EquipmentSlot::RING_1 ||
                   *ring_choice_ == EquipmentSlot::RING_2)) {
             target_slot = *ring_choice_;
@@ -661,11 +663,11 @@ ActionResult EquipAction::execute(World& world, std::queue<std::unique_ptr<Actio
     // iterator may have been invalidated by the push_back above, so
     // re-locate by letter.
     {
-        auto re_it = std::find_if(inv->slots.begin(), inv->slots.end(),
+        auto re_it = std::ranges::find_if(inv->slots,
                                    [this](const InventorySlot& s) { return s.letter == letter_; });
         if (re_it != inv->slots.end()) inv->slots.erase(re_it);
     }
-    registry.emplace_or_replace<Equipped>(item_entity, Equipped{actor_, target_slot});
+    registry.emplace_or_replace<Equipped>(item_entity, Equipped{.owner = actor_, .slot = target_slot});
     equip.slots[target_slot] = item_entity;
 
     if (actor_is_player) {
@@ -684,7 +686,7 @@ std::string EquipAction::description() const {
     return oss.str();
 }
 
-ActionResult UnequipAction::execute(World& world, std::queue<std::unique_ptr<Action>>&) {
+ActionResult UnequipAction::execute(World& world, [[maybe_unused]] std::queue<std::unique_ptr<Action>>& action_queue) {
     auto& registry = world.get_registry();
     if (!registry.valid(actor_)) return {ActionResult::Status::Invalid, 0};
 

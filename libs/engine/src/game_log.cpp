@@ -6,7 +6,7 @@ namespace engine {
 using namespace ftxui;
 
 void LogEntry::add_fragment(const std::string& text, const LogFragmentStyle& style) {
-    fragments_.push_back({text, style});
+    fragments_.push_back({.text = text, .style = style});
 }
 
 Element LogEntry::render() const {

@@ -3,6 +3,38 @@ project(rglike)
 
 set(CMAKE_CXX_STANDARD 20)
 
+# Compile/link options applied only to first-party targets (engine, rglike).
+# Not propagated to FetchContent dependencies.
+add_library(project_options INTERFACE)
+
+if(MSVC)
+    target_compile_options(project_options INTERFACE /W4 /permissive-)
+else()
+    target_compile_options(project_options INTERFACE
+        -Wall -Wextra -Wpedantic
+        -Wshadow -Wnon-virtual-dtor -Wold-style-cast
+        -Wcast-align -Wunused -Woverloaded-virtual
+        -Wnull-dereference -Wdouble-promotion -Wformat=2
+    )
+endif()
+
+option(ENABLE_SANITIZERS "Build with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
+if(ENABLE_SANITIZERS)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(project_options INTERFACE
+            -fsanitize=address,undefined -fno-omit-frame-pointer
+        )
+        target_link_options(project_options INTERFACE
+            -fsanitize=address,undefined
+        )
+    elseif(MSVC)
+        target_compile_options(project_options INTERFACE /fsanitize=address)
+        message(WARNING "MSVC supports AddressSanitizer only; UBSan is not available.")
+    else()
+        message(WARNING "ENABLE_SANITIZERS: compiler ${CMAKE_CXX_COMPILER_ID} unsupported.")
+    endif()
+endif()
+
 include(FetchContent)
 
 # Fetch FTXUI

@@ -11,6 +11,7 @@
 
 namespace engine {
 
+// NOLINTNEXTLINE(performance-unnecessary-value-param) — moved into MapComponent via emplace forwarding
 World::World(int width, int height, std::string map_name, uint32_t rng_seed)
     : rng_(rng_seed) {
     // Create map entity with MapComponent
@@ -55,7 +56,7 @@ std::string World::get_map_name() const {
 
 Position World::get_player_position() const {
     const auto* pos = registry_.try_get<Position>(player_entity_);
-    return pos ? *pos : Position{0, 0};
+    return pos ? *pos : Position{.x = 0, .y = 0};
 }
 
 void World::set_player_position(int x, int y) {
@@ -132,7 +133,7 @@ bool World::set_terrain(int x, int y, const Terrain& terrain) {
     if (!existing.has_value()) {
         return false;
     }
-    map_comp->map.tiles[y * map_comp->map.width + x] = terrain;
+    map_comp->map.tiles[(y * map_comp->map.width) + x] = terrain;
     return true;
 }
 
@@ -143,16 +144,12 @@ bool World::is_passable(int x, int y) const {
         return false;
     }
 
-    // Check for entities that block movement at this position
+    // No blocking entity at this position
     auto view = registry_.view<Position, BlocksMovement>();
-    for (auto entity : view) {
+    return std::ranges::none_of(view, [&](auto entity) {
         const auto& pos = view.get<Position>(entity);
-        if (pos.x == x && pos.y == y) {
-            return false;  // Entity blocking movement at this position
-        }
-    }
-
-    return true;
+        return pos.x == x && pos.y == y;
+    });
 }
 
 bool World::is_visible(int x, int y) const {
@@ -179,7 +176,7 @@ std::vector<entt::entity> World::get_entities_at(int x, int y) const {
     }
 
     // Sort by render_order
-    std::sort(result.begin(), result.end(), [this](entt::entity a, entt::entity b) {
+    std::ranges::sort(result, [this](entt::entity a, entt::entity b) {
         const auto* render_a = registry_.try_get<Renderable>(a);
         const auto* render_b = registry_.try_get<Renderable>(b);
         int order_a = render_a ? render_a->render_order : 0;
@@ -225,7 +222,7 @@ entt::entity World::spawn_ground_item(const std::string& item_id, int x, int y, 
     if (!item_registry_) return entt::null;
     auto tmpl = item_registry_->get(item_id);
     if (!tmpl) return entt::null;
-    if (count < 1) count = 1;
+    count = std::max(count, 1);
 
     auto e = registry_.create();
     registry_.emplace<Position>(e, x, y);
@@ -248,7 +245,7 @@ bool World::give_item_to(entt::entity actor, const std::string& item_id, int cou
     if (!item_registry_) return false;
     auto tmpl = item_registry_->get(item_id);
     if (!tmpl) return false;
-    if (count < 1) count = 1;
+    count = std::max(count, 1);
 
     auto* inv = registry_.try_get<InventoryComponent>(actor);
     if (!inv) return false;
